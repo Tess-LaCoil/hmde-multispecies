@@ -53,17 +53,40 @@ col_vec <- c("#f8766d",
 #------------------------------------------------------------------------------#
 #   Get sample from cleaned data.
 #------------------------------------------------------------------------------#
+sample <- FALSE
+if(sample){
+  source("R/Sampling.R", local = TRUE)
+  sample_data(sample_size = 300, data_path = "input/input_ignore/tree_data.csv")
+}
 
 #------------------------------------------------------------------------------#
 #   Run models
 #------------------------------------------------------------------------------#
+run_models <- FALSE
+if(run_models){
+  source("R/Model_Fitting.R", local = TRUE)
+  fit_hierarchical_models(sp_codes = sp_codes,
+                          rstan_file_path = "input/")
+}
 
 #------------------------------------------------------------------------------#
 #   Extract estimates from fits
 #------------------------------------------------------------------------------#
-
+extract_estimates <- FALSE
+if(extract_estimates){
+  source("R/Extract_Estimates.R", local = TRUE)
+  extract_fit_estimates(sp_codes = sp_codes,
+                        fit_file_path = "input/input_ignore/",
+                        rstan_file_path = "input/")
+}
 
 
 #------------------------------------------------------------------------------#
 #   Run analysis
 #------------------------------------------------------------------------------#
+analysis <- FALSE
+if(analysis){
+  source("R/Fit_Analysis.R", local = TRUE)
+  run_analysis(sp_codes = sp_codes,
+               est_file_path = "output/data/")
+}
