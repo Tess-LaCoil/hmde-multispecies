@@ -12,6 +12,7 @@
   library(grid)
   library(plotly)
   library(GGally)
+  library(htmlwidgets)
 }
 
 sp_codes <- c("alsebl",
@@ -50,6 +51,23 @@ col_vec <- c("#f8766d",
              "#ff62bc",
              "#fc717f")
 
+#Check if output directory structure exists, construct if not
+if(!dir.exists("input/input_ignore/")){
+  dir.create("input/input_ignore/")
+}
+if(!dir.exists("output/")){
+  dir.create("output/")
+  dir.create("output/data")
+  dir.create('output/figures')
+  dir.create("output/figures/diagnostic")
+}
+if(!dir.exists("output/figures")){
+  dir.create("output/figures")
+}
+if(!dir.exists("output/figures/diagnostic")){
+  dir.create("output/figures/diagnostic")
+}
+
 #------------------------------------------------------------------------------#
 #   Get sample from cleaned data.
 #------------------------------------------------------------------------------#
@@ -64,11 +82,18 @@ if(sample){
 #------------------------------------------------------------------------------#
 #   Run models
 #------------------------------------------------------------------------------#
-run_models <- FALSE
-if(run_models){
+run_hierarchical_models <- FALSE
+if(run_hierarchical_models){
   source("R/Model_Fitting.R", local = TRUE)
   fit_hierarchical_models(sp_codes = sp_codes,
                           rstan_file_path = "input/")
+}
+
+run_species_level_models <- TRUE
+if(run_species_level_models){
+  source("R/Model_Fitting.R", local = TRUE)
+  fit_species_level_models(sp_codes = sp_codes,
+                           rstan_file_path = "input/")
 }
 
 #------------------------------------------------------------------------------#
@@ -76,22 +101,12 @@ if(run_models){
 #------------------------------------------------------------------------------#
 extract_estimates <- TRUE
 if(extract_estimates){
-  #Check if output directory structure exists, construct if not
-  if(!dir.exists("output/")){
-    dir.create("output/")
-    dir.create("output/data")
-    dir.create('output/figures')
-    dir.create("output/figures/diagnostic")
-  }
-  if(!dir.exists("output/figures/diagnostic")){
-    dir.create("output/figures/diagnostic")
-  }
-
   source("R/Extract_Estimates.R", local = TRUE)
   extract_fit_estimates(sp_codes = sp_codes,
                         fit_file_path = "input/input_ignore/",
                         rstan_file_path = "input/",
-                        plot_diagnostics = TRUE)
+                        plot_diagnostics = TRUE,
+                        warmup = 1500)
 }
 
 
