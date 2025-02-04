@@ -76,10 +76,13 @@ if(run_models){
 #------------------------------------------------------------------------------#
 extract_estimates <- TRUE
 if(extract_estimates){
+  #Check if output directory structure exists, construct if not
+
   source("R/Extract_Estimates.R", local = TRUE)
   extract_fit_estimates(sp_codes = sp_codes,
                         fit_file_path = "input/input_ignore/",
-                        rstan_file_path = "input/")
+                        rstan_file_path = "input/",
+                        plot_diagnostics = TRUE)
 }
 
 
