@@ -1,19 +1,32 @@
 diagnostic_list_single_species <- list(
   #Global
-  plot4=list(
+  plot1=list(
     pars=c("global_error_sigma"),
-    name="full_model_sigma"
+    name="canham_sigma"
+  ),
+
+  plot2 <- list(
+    pars = "ind_max_growth",
+    name = "ind_max_growth"
+  ),
+  plot3 <- list(
+    pars = "ind_size_at_max_growth",
+    name = "ind_size_at_max_growth"
+  ),
+  plot4 <- list(
+    pars = "ind_k",
+    name = "ind_k"
   ),
 
   #Species
   plot5=list(
-    pars=c("species_max_growth_mean",
-           "species_max_growth_sd",
-           "species_diameter_at_max_growth_mean",
-           "species_diameter_at_max_growth_sd",
-           "species_K_mean",
-           "species_K_sd"),
-    name="full_model_pars"
+    pars=c("pop_max_growth_mean",
+           "pop_max_growth_sd",
+           "pop_size_at_max_growth_mean",
+           "pop_size_at_max_growth_sd",
+           "pop_k_mean",
+           "pop_k_sd"),
+    name="canham_pars"
   )
 )
 

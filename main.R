@@ -77,6 +77,15 @@ if(run_models){
 extract_estimates <- TRUE
 if(extract_estimates){
   #Check if output directory structure exists, construct if not
+  if(!dir.exists("output/")){
+    dir.create("output/")
+    dir.create("output/data")
+    dir.create('output/figures')
+    dir.create("output/figures/diagnostic")
+  }
+  if(!dir.exists("output/figures/diagnostic")){
+    dir.create("output/figures/diagnostic")
+  }
 
   source("R/Extract_Estimates.R", local = TRUE)
   extract_fit_estimates(sp_codes = sp_codes,
