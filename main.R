@@ -20,7 +20,7 @@ sp_codes <- c("alsebl",
               "faraoc",
               "gar2in",
               "hirttr",
-              "jac1cl",
+              "jac1co",
               "pri2co",
               "protpa",
               "protte",
@@ -56,7 +56,9 @@ col_vec <- c("#f8766d",
 sample <- FALSE
 if(sample){
   source("R/Sampling.R", local = TRUE)
-  sample_data(sample_size = 300, data_path = "input/input_ignore/tree_data.csv")
+  sample_data(sample_size = 300,
+              data_path = "input/input_ignore/tree_data.csv",
+              out_path = "input/")
 }
 
 #------------------------------------------------------------------------------#
@@ -72,7 +74,7 @@ if(run_models){
 #------------------------------------------------------------------------------#
 #   Extract estimates from fits
 #------------------------------------------------------------------------------#
-extract_estimates <- FALSE
+extract_estimates <- TRUE
 if(extract_estimates){
   source("R/Extract_Estimates.R", local = TRUE)
   extract_fit_estimates(sp_codes = sp_codes,
