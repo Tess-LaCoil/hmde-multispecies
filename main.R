@@ -106,6 +106,8 @@ if(extract_estimates){
                         fit_file_path = "input/input_ignore/",
                         rstan_file_path = "input/",
                         plot_diagnostics = TRUE,
+                        hierarchical_model = TRUE,
+                        species_level_model = TRUE,
                         warmup = 1500)
 }
 

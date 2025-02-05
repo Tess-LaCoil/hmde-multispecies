@@ -30,39 +30,94 @@ diagnostic_list_single_species <- list(
   )
 )
 
+diagnostic_list_species_level <- list(
+  plot1 <- list(
+    pars = c("pop_max_growth", "pop_size_at_max_growth",
+             "pop_k", "global_error_sigma"),
+    name = "canham_species_level_pars"
+  )
+)
+
 extract_fit_estimates <- function(sp_codes,
                                   fit_file_path,
                                   rstan_file_path,
                                   plot_diagnostics,
+                                  hierarchical_model = TRUE,
+                                  species_level_model = TRUE,
                                   warmup = 1500){
   for(i in 1:length(sp_codes)){
     print(paste0("Extracting: ", sp_codes[i]))
-    fit <- readRDS(paste0(fit_file_path,
-                          sp_codes[i],
-                          "_SRSWR_fit.rds"))
-    fit@sim$warmup <- warmup
-    fit@model_name <- "canham_multi_ind"
+    if(hierarchical_model){
+      print("Hierarchical model estimates.")
+      fit <- readRDS(paste0(fit_file_path,
+                            sp_codes[i],
+                            "_SRSWR_fit.rds"))
+      fit@sim$warmup <- warmup
+      fit@model_name <- "canham_multi_ind"
 
-    rstan_data <- readRDS(paste0(rstan_file_path,
-                                 sp_codes[i],
-                                 "_SRSWR_stan_data.rds"))
-    obs_data <- tibble(
-      ind_id = rstan_data$ind_id,
-      time = rstan_data$time,
-      y_obs = rstan_data$time,
-      obs_index = rstan_data$obs_index
-    )
+      rstan_data <- readRDS(paste0(rstan_file_path,
+                                   sp_codes[i],
+                                   "_SRSWR_stan_data.rds"))
+      obs_data <- tibble(
+        ind_id = rstan_data$ind_id,
+        time = rstan_data$time,
+        y_obs = rstan_data$time,
+        obs_index = rstan_data$obs_index
+      )
 
-    if(plot_diagnostics){
-      plot_all_diagnostics(fit, sp_code = sp_codes[i],
-                           plot_list = diagnostic_list_single_species)
+      if(plot_diagnostics){
+        plot_all_diagnostics(fit, sp_code = sp_codes[i],
+                             plot_list = diagnostic_list_single_species)
+      }
+
+      ests <- hmde_extract_estimates(fit = fit,
+                                     input_measurement_data = obs_data)
+
+      saveRDS(ests, paste0("output/data/", sp_codes[i], "_ests.rds"))
     }
 
-    ests <- hmde_extract_estimates(fit = fit,
-                                   input_measurement_data = obs_data)
+    if(species_level_model){
+      print("Species level estimates.")
+      sp_fit <- readRDS(paste0(fit_file_path,
+                               sp_codes[i],
+                               "_SRSWR_species_level_fit.rds"))
+      if(plot_diagnostics){
+        plot_all_diagnostics(sp_fit, sp_code = sp_codes[i],
+                             plot_list = diagnostic_list_species_level)
+      }
 
-    saveRDS(ests, paste0("output/data/", sp_codes[i], "_ests.rds"))
+      sp_level_ests <- extract_species_level_ests(sp_fit, sp_codes[i])
+      saveRDS(sp_level_ests, paste0("output/data/",
+                                    sp_codes[i],
+                                    "_sp_level_model_ests.rds"))
+    }
   }
+}
+
+extract_species_level_ests <- function(sp_fit, sp_code){
+  pars_names <- c("pop_max_growth",
+                  "pop_size_at_max_growth",
+                  "pop_k")
+  samples <- rstan::extract(sp_fit, permuted = TRUE, inc_warmup = FALSE)
+
+  sp_level_ests <- tibble(sp_code = c(),
+                          par_name = c(),
+                          mean_est = c(),
+                          median_est = c(),
+                          CI_lower = c(),
+                          CI_upper = c())
+  for(j in 1:length(pars_names)){
+    est_temp <- tibble(sp_code = sp_code,
+                       par_name = pars_names[j],
+                       mean_est = mean(samples[[pars_names[j]]]),
+                       median_est = median(samples[[pars_names[j]]]),
+                       CI_lower = stats::quantile(samples[[pars_names[j]]], probs=c(0.025)),
+                       CI_upper = stats::quantile(samples[[pars_names[j]]], probs=c(0.975))
+    )
+    sp_level_ests <- rbind(sp_level_ests, est_temp)
+  }
+
+  return(sp_level_ests)
 }
 
 plot_all_diagnostics <- function(fit, sp_code, plot_list, inc_warmup = FALSE){
