@@ -1,7 +1,8 @@
 sample_data <- function(sample_size,
                         data_path,
-                        out_path){
-  data_trees <- read.csv()
+                        out_path,
+                        sp_codes){
+  data_trees <- read.csv(data_path)
 
   data_trees_transformed <-
     data_trees %>%
@@ -25,13 +26,13 @@ sample_data <- function(sample_size,
   data <- data_trees_transformed %>%
     filter(max_census == 6) %>% #Trees that has been around the entire time
     filter(same_stem == 0) %>% #Removes records that may have different stems
-    filter(sp %in% trees_of_interest)
+    filter(sp %in% sp_codes)
 
 
   sample_size <- 300
-  for(i in 1:length(trees_of_interest)){
+  for(i in 1:length(sp_codes)){
     species_data <- data %>%
-      filter(sp == trees_of_interest[i])
+      filter(sp == sp_codes[i])
 
     #If there are enough individuals take a sample otherwise take the lot.
     if(length(unique(species_data$treeid)) > sample_size){
@@ -54,7 +55,7 @@ sample_data <- function(sample_size,
     }
 
     saveRDS(sample_data, file = paste0(out_path,
-                                       trees_of_interest[i],
+                                       sp_codes[i],
                                        "_SRSWR_sample.rds"))
 
     stan_data <- list(
@@ -66,7 +67,7 @@ sample_data <- function(sample_size,
       ind_id = sample_data$treeid_factor
     )
     saveRDS(stan_data, file = paste0(out_path,
-                                     trees_of_interest[i],
+                                     sp_codes[i],
                                      "_SRSWR_stan_data.rds"))
   }
 }

@@ -71,12 +71,13 @@ if(!dir.exists("output/figures/diagnostic")){
 #------------------------------------------------------------------------------#
 #   Get sample from cleaned data.
 #------------------------------------------------------------------------------#
-sample <- FALSE
-if(sample){
+take_sample <- TRUE
+if(take_sample){
   source("R/Sampling.R", local = TRUE)
   sample_data(sample_size = 300,
-              data_path = "input/input_ignore/tree_data.csv",
-              out_path = "input/")
+              data_path = "input/input_ignore/data_trees_cleaned.csv",
+              out_path = "input/",
+              sp_codes = sp_codes[5])
 }
 
 #------------------------------------------------------------------------------#
@@ -119,5 +120,6 @@ analysis <- FALSE
 if(analysis){
   source("R/Fit_Analysis.R", local = TRUE)
   run_analysis(sp_codes = sp_codes,
+               col_vec = col_vec,
                est_file_path = "output/data/")
 }

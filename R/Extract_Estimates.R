@@ -61,7 +61,7 @@ extract_fit_estimates <- function(sp_codes,
       obs_data <- tibble(
         ind_id = rstan_data$ind_id,
         time = rstan_data$time,
-        y_obs = rstan_data$time,
+        y_obs = rstan_data$y_obs,
         obs_index = rstan_data$obs_index
       )
 
