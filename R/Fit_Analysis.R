@@ -57,6 +57,9 @@ run_analysis <- function(sp_codes,
                                           "ind_k"),
                      growth_function = hmde_model_des("canham_single_ind"),
                      col_vec)
+
+  six_species_focus(measurement_data = full_data$measurement_data_full,
+                    individual_data = full_data$ind_data_full)
 }
 
 #-----------------------------------------------------------------------------#
@@ -110,15 +113,15 @@ construct_full_data_tibbles <- function(sp_codes,
     sample_data <- readRDS(paste0("input/",sp_codes[i],"_SRSWR_sample.rds"))
 
     ind_id_tibble <- sample_data %>%
-      select(treeid, treeid_factor) %>%
+      select(BCI_ind_id, ind_id) %>%
       distinct() %>%
-      arrange(treeid_factor)
+      arrange(ind_id)
 
     #Measurement data
     ests$measurement_data <- ests$measurement_data %>%
       group_by(ind_id) %>%
       arrange(obs_index) %>%
-      mutate(BCI_ind_id = ind_id_tibble$treeid[ind_id],
+      mutate(BCI_ind_id = ind_id_tibble$BCI_ind_id[ind_id],
              sp_code = sp_codes[i],
              species = sample_data$species[1],
              S_initial = first(y_hat),
@@ -147,7 +150,7 @@ construct_full_data_tibbles <- function(sp_codes,
 
     ests$individual_data <- ests$individual_data %>%
       group_by(ind_id) %>%
-      mutate(BCI_ind_id = ind_id_tibble$treeid[ind_id],
+      mutate(BCI_ind_id = ind_id_tibble$BCI_ind_id[ind_id],
              sp_code = sp_codes[i],
              species = sample_data$species[1]) %>%
       ungroup()
@@ -407,8 +410,213 @@ ggplot_sample_growth_trajectories <- function(post_pars, growth_function,
 }
 
 #-----------------------------------------------------------------------------#
+#Analysis of 6 focus species
+six_species_focus <- function(measurement_data,
+                              individual_data,
+                              plot_initial_sizes = FALSE){
+  sp_codes <- c("gar2in",
+                "hirttr",
+                "swars1",
+                "simaam",
+                "tachve",
+                "tet2pa")
+  sp_names <- c("Garcinia recondita",
+                "Hirtella triandra",
+                "Swartzia simplex",
+                "Simarouba amara",
+                "Tachigali panamensis",
+                "Protium stevensonii")
+  col_vec <- c("#72b000",
+               "#00b81f",
+               "#77a5ff",
+               "#cf78ff",
+               "#f066ea",
+               "#ff62bc")
+  if(plot_initial_sizes){
+    for(i in 1:length(sp_codes)){
+      temp_measurement_data <- measurement_data %>%
+        filter(sp_code == sp_codes[i])
+      temp_ind_data <- individual_data %>%
+        filter(sp_code == sp_codes[i])
+
+      plot_obs_and_est_life_history(temp_measurement_data,
+                                    nrow(temp_ind_data),
+                                    sp_codes[i], colour = col_vec[i])
+    }
+  }
+
+  focus_ind_list <- list(
+    gar2in = c(7, 26, 171, 183, 77), #G. recondita  - gar2in
+    hirttr = c(57, 58, 28, 8, 2), #H. triandra - hirttr done
+    swars1 = c(33, 71, 100, 4, 5), #S. simplex  - swaras1 done
+    tet2pa = c(3, 7, 9, 52, 53), #P. stevensonii
+    simaam =  c(21, 23, 11, 163, 5), #S. amara  - simaam done
+    tachve = c(3, 9, 2, 20, 219) #T. panamensis tachve
+  )
+
+  for(i in 1:length(sp_codes)){
+    focus_ind_vec <- focus_ind_list[[i]]
+    temp_measurement_data <- measurement_data %>%
+      filter(sp_code = sp_codes[i])
+    temp_ind_data <- individual_data %>%
+      filter(sp_code = sp_codes[i])
+
+    plot_focus_ind_figs(focus_ind_vec,
+                        temp_measurement_data,
+                        temp_ind_data,
+                        growth_function = hmde_model_des("canham_multi_ind"),
+                        species = temp_ind_data$species[1],
+                        colour = col_vec[i])
+  }
+}
+
+#----------------------------------------------------------------------------#
+# Observed and estimated life histories
+#Plots a sample of individuals to show how the model estimates behave against the observed size
+plot_obs_and_est_life_history <- function(plotting_data, n_ind, species, colour){
+  for(j in 1:n_ind){
+    if((j-1)%%100 == 0){print(paste0("Plotting sizes over time ", j))}
+
+    sample <- plotting_data %>%
+      filter(ind_id == j) %>%
+      select(y_obs, time, BCI_ind_id, y_hat, ind_id) %>%
+      mutate(time = 1990 + round(time, digits=0))
+
+    #Build data frame
+    data <- data.frame(size=sample$y_obs,
+                       time=sample$time,
+                       cond=rep("Obs.", times=length(sample$time)))
+    data <- rbind (data, data.frame(size=sample$y_hat,
+                                    time=sample$time,
+                                    cond=rep("Est.", times=length(sample$time))))
+
+    #Produce plot
+    file_name <- paste("output/figures/sampled/", species,
+                       "_Sizes_",
+                       j,".png", sep="")
+
+    plot <- ggplot_obs_and_est_life_history(data, title = sample$BCI_ind_id[1], colour)
+
+    ggsave(file_name, plot=plot, width=130, height=100, units="mm")
+  }
+}
+
+#Produces plot for plot_obs_and_est_life_history()
+ggplot_obs_and_est_life_history<- function(data, title, colour){
+  plot <- ggplot(data=data, aes(x, y)) +
+    geom_line(aes(x=time, y=size, color=as.factor(cond),
+                  group=cond, linetype=as.factor(cond)), linewidth=1.1) +
+    geom_point(aes(x=time, y=size, color=as.factor(cond),
+                   shape=as.factor(cond),
+                   group=cond), size=2.5) +
+    scale_linetype_manual(values = c("dashed", "solid")) +
+    scale_color_manual(values = c("black", colour)) +
+    xlab("Year") +
+    ylab("Size (cm)") +
+    ggtitle(title) +
+    labs(color = NULL) +
+    theme_classic()
+
+  return(plot)
+}
+
+#--------------------------------------------------------------------------#
+#Multipe ind. focus plots
+plot_focus_ind_figs <- function(focus_inds, measurement_data, ind_data, growth_function, species, colour){
+  #Plot sizes over time
+  focus_ind_sizes <- measurement_data %>%
+    filter(ind_id %in% focus_inds)
+  plot_multi_ind_life_history(focus_ind_sizes, species, colour)
+
+  #Plot growth function pieces
+  plot_growth_focus(focus_inds, ind_data, growth_function, species, colour)
+}
+
+#Plot growth functions with focused individuals highlighted
+plot_growth_focus <- function(focus_inds, ind_data, growth_function, species, colour){
+  focus_ind_pars <- ind_data %>%
+    filter(ind_id %in% focus_inds)
+
+  post_pars <- data.frame(g_max = ind_data$canham_max_growth_hat,
+                          s_max = ind_data$canham_diameter_at_max_growth_hat,
+                          k = ind_data$canham_K_hat)
+  focus_post_pars <- data.frame(g_max = focus_ind_pars$canham_max_growth_hat,
+                                s_max = focus_ind_pars$canham_diameter_at_max_growth_hat,
+                                k = focus_ind_pars$canham_K_hat)
+
+  plot <- ggplot_sample_growth_trajectories(post_pars,
+                                            growth_function,
+                                            max_growth_size = max(ind_data$S_final),
+                                            min_growth_size = 1,
+                                            S_0 = ind_data$S_initial,
+                                            S_final = ind_data$S_final,
+                                            colour = colour,
+                                            species = ind_data$species[1])
+  for(i in 1:nrow(focus_post_pars)){
+    args_list <- list(pars=focus_post_pars[i,])
+    plot <- plot +
+      geom_function(fun=growth_function, args=args_list, alpha=1,
+                    color="#333333", linewidth=1, xlim=c(focus_ind_pars$canham_S_0_hat[i],
+                                                         focus_ind_pars$S_final[i]))
+  }
+  ggsave(paste0("output/figures/", species, "_GrowthFocus.svg"),
+         plot=plot, width=99, height=72, units="mm", device = "svg")
+}
+
+#Plot multiple individuals life history in same figure
+plot_multi_ind_life_history<- function(plotting_data, species, colour){
+  #Build data frame
+  data <- data.frame(size=plotting_data$y_obs,
+                     time=plotting_data$time,
+                     cond=rep("Observed", times=length(plotting_data$time)),
+                     id_num = paste(plotting_data$treeid, "Obs") )
+  data <- rbind(data,
+                data.frame(size=plotting_data$y_hat,
+                           time=plotting_data$time,
+                           cond=rep("Estimated", times=length(plotting_data$time)),
+                           id_num = paste(plotting_data$treeid, "Est")
+                )
+  )
+  data <- data %>%
+    mutate(time = 1990 + round(time, digits=0))
+
+  #Produce plot
+  file_name <- paste("output/figures/", species,
+                     "_Sizes.svg", sep="")
+
+  plot <- ggplot_multi_ind_life_history(data, species, colour) +
+    theme(legend.position="none")
+
+  ggsave(file_name, plot=plot, width=99, height=72, units="mm", device = "svg")
+
+}
+
+#Produces plot_multi_ind_life_history()
+ggplot_multi_ind_life_history <- function(data, species, colour){
+  plot <- ggplot(data=data, aes(x, y)) +
+    geom_line(aes(x=time, y=size,
+                  color=as.factor(cond),
+                  alpha = as.factor(cond),
+                  group = id_num,
+                  linetype=as.factor(cond)), linewidth=1.1) +
+    geom_point(aes(x=time, y=size, color=as.factor(cond),
+                   shape=as.factor(cond)), size=2.5) +
+    scale_linetype_manual(values = c("solid", "dashed")) +
+    scale_color_manual(values = c(colour, "black")) +
+    scale_alpha_manual(values = c(1, 0.5)) +
+    xlab("Year") +
+    ylab("Size (DBH) cm") +
+    ggtitle(species) +
+    labs(color = NULL, shape=NULL, linetype = NULL, alpha=NULL) +
+    theme_classic() +
+    theme(legend.position = "bottom")
+
+  return(plot)
+}
+
+#-----------------------------------------------------------------------------#
 #3D scatter plot of individuals coloured by species
-plot_3d_scatter(ind_data, col_vec){
+plot_3d_scatter <- function(ind_data, col_vec){
   # 3D scatter plot of parameters
   fig <- plot_ly(ind_data,
                  x = ~ind_max_growth,

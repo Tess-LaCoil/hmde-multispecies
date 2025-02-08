@@ -77,7 +77,7 @@ if(take_sample){
   sample_data(sample_size = 300,
               data_path = "input/input_ignore/data_trees_cleaned.csv",
               out_path = "input/",
-              sp_codes = sp_codes[5])
+              sp_codes = sp_codes)
 }
 
 #------------------------------------------------------------------------------#
