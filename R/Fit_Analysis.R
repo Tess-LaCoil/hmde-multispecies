@@ -113,6 +113,8 @@ construct_full_data_tibbles <- function(sp_codes,
     sample_data <- readRDS(paste0("input/",sp_codes[i],"_SRSWR_sample.rds"))
 
     ind_id_tibble <- sample_data %>%
+      mutate(BCI_ind_id = treeid,
+             ind_id = treeid_factor) %>%
       select(BCI_ind_id, ind_id) %>%
       distinct() %>%
       arrange(ind_id)
@@ -446,24 +448,24 @@ six_species_focus <- function(measurement_data,
   }
 
   focus_ind_list <- list(
-    gar2in = c(7, 26, 171, 183, 77), #G. recondita  - gar2in
+    gar2in = c(3, 12, 72, 126, 160), #G. recondita - gar2in done
     hirttr = c(57, 58, 28, 8, 2), #H. triandra - hirttr done
     swars1 = c(33, 71, 100, 4, 5), #S. simplex  - swaras1 done
-    tet2pa = c(3, 7, 9, 52, 53), #P. stevensonii
     simaam =  c(21, 23, 11, 163, 5), #S. amara  - simaam done
-    tachve = c(3, 9, 2, 20, 219) #T. panamensis tachve
+    tachve = c(35, 31, 4, 8, 34), #T. panamensis - tachve done
+    tet2pa = c(26, 51, 112, 9, 2) #P. stevensonii - tet2pa done
   )
 
   for(i in 1:length(sp_codes)){
-    focus_ind_vec <- focus_ind_list[[i]]
+    focus_ind_vec <- focus_ind_list[[sp_codes[i]]]
     temp_measurement_data <- measurement_data %>%
-      filter(sp_code = sp_codes[i])
+      filter(sp_code == sp_codes[i])
     temp_ind_data <- individual_data %>%
-      filter(sp_code = sp_codes[i])
+      filter(sp_code == sp_codes[i])
 
-    plot_focus_ind_figs(focus_ind_vec,
-                        temp_measurement_data,
-                        temp_ind_data,
+    plot_focus_ind_figs(focus_inds = focus_ind_vec,
+                        measurement_data = temp_measurement_data,
+                        ind_data = temp_ind_data,
                         growth_function = hmde_model_des("canham_multi_ind"),
                         species = temp_ind_data$species[1],
                         colour = col_vec[i])
@@ -537,12 +539,12 @@ plot_growth_focus <- function(focus_inds, ind_data, growth_function, species, co
   focus_ind_pars <- ind_data %>%
     filter(ind_id %in% focus_inds)
 
-  post_pars <- data.frame(g_max = ind_data$canham_max_growth_hat,
-                          s_max = ind_data$canham_diameter_at_max_growth_hat,
-                          k = ind_data$canham_K_hat)
-  focus_post_pars <- data.frame(g_max = focus_ind_pars$canham_max_growth_hat,
-                                s_max = focus_ind_pars$canham_diameter_at_max_growth_hat,
-                                k = focus_ind_pars$canham_K_hat)
+  post_pars <- data.frame(g_max = ind_data$ind_max_growth,
+                          s_max = ind_data$ind_size_at_max_growth,
+                          k = ind_data$ind_k)
+  focus_post_pars <- data.frame(g_max = focus_ind_pars$ind_max_growth,
+                                s_max = focus_ind_pars$ind_size_at_max_growth,
+                                k = focus_ind_pars$ind_k)
 
   plot <- ggplot_sample_growth_trajectories(post_pars,
                                             growth_function,
@@ -556,7 +558,7 @@ plot_growth_focus <- function(focus_inds, ind_data, growth_function, species, co
     args_list <- list(pars=focus_post_pars[i,])
     plot <- plot +
       geom_function(fun=growth_function, args=args_list, alpha=1,
-                    color="#333333", linewidth=1, xlim=c(focus_ind_pars$canham_S_0_hat[i],
+                    color="#333333", linewidth=1, xlim=c(focus_ind_pars$S_initial[i],
                                                          focus_ind_pars$S_final[i]))
   }
   ggsave(paste0("output/figures/", species, "_GrowthFocus.svg"),
@@ -569,12 +571,12 @@ plot_multi_ind_life_history<- function(plotting_data, species, colour){
   data <- data.frame(size=plotting_data$y_obs,
                      time=plotting_data$time,
                      cond=rep("Observed", times=length(plotting_data$time)),
-                     id_num = paste(plotting_data$treeid, "Obs") )
+                     id_num = paste(plotting_data$BCI_ind_id, "Obs") )
   data <- rbind(data,
                 data.frame(size=plotting_data$y_hat,
                            time=plotting_data$time,
                            cond=rep("Estimated", times=length(plotting_data$time)),
-                           id_num = paste(plotting_data$treeid, "Est")
+                           id_num = paste(plotting_data$BCI_ind_id, "Est")
                 )
   )
   data <- data %>%
