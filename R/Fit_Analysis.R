@@ -25,10 +25,11 @@ run_analysis <- function(sp_codes,
                          est_file_path){
   #Construct tibbles containing all species data
   full_data <- construct_full_data_tibbles(sp_codes, est_file_path)
-  saveRDS(full_data, file = "output/data/full_est_data.rds")
+  saveRDS(full_data, file = "output/data/full_data.rds")
 
   #Tables
-  build_sp_tables(full_data)
+  species_summary_table <- build_sp_tables(full_data)
+  write.csv(species_summary_table, file = "output/data/species_summary_table.csv")
 
   #Plots plots plots
   #fig_1_plots(full_data, sp_code = "gar2in")
@@ -256,11 +257,17 @@ build_sp_tables <- (full_data){
   #Load in walltime data
   species_walltime <- read.csv("input/species_walltime.csv")
 
+  #Trait data
+  trait_table <-  read.csv("input/TraitTable.csv")
+
   species_summary_table <- left_join(sp_names, hierarchical_summary_table, by = "sp_code") %>%
     left_join(ind_summary_size, by = "sp_code") %>%
     left_join(obs_growth_data, by = "sp_code") %>%
     left_join(species_walltime, by = "sp_code") %>%
-    left_join(sp_model_wide, by = "sp_code")
+    left_join(sp_model_wide, by = "sp_code") %>%
+    left_join(trait_table, by = "species")
+
+  return(species_summary_table)
 }
 
 #-----------------------------------------------------------------------------#
