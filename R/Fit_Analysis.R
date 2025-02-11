@@ -27,6 +27,9 @@ run_analysis <- function(sp_codes,
   full_data <- construct_full_data_tibbles(sp_codes, est_file_path)
   saveRDS(full_data, file = "output/data/full_est_data.rds")
 
+  #Tables
+  build_sp_tables(full_data)
+
   #Plots plots plots
   #fig_1_plots(full_data, sp_code = "gar2in")
   plot_3d_scatter(ind_data = full_data$ind_data_full, col_vec)
@@ -193,6 +196,71 @@ construct_full_data_tibbles <- function(sp_codes,
     sp_data_full = sp_data_full,
     sp_model_data_full = sp_model_data_full
   )
+}
+
+
+#-----------------------------------------------------------------------------#
+#Construct tables for species-level data
+build_sp_tables <- (full_data){
+  #Species names
+  sp_names <- full_data$sp_data_full %>%
+    select(sp_code, species) %>%
+    distinct()
+
+  #Convert to wide format
+  hierarchical_summary_table <- full_data$sp_data_full %>%
+    mutate(par_name_factor = as.factor(par_name)) %>%
+    select(sp_code, par_name_factor, median) %>%
+    spread(par_name_factor, median)
+
+  names(hierarchical_summary_table) <- c(
+    "sp_code","pop_log_k_mean","pop_log_k_sd", "pop_log_max_growth_mean",
+    "pop_log_max_growth_sd", "pop_log_size_at_max_growth_mean",
+    "pop_log_size_at_max_growth_sd"
+  )
+
+  #Exponentiate means
+  hierarchical_summary_table <- hierarchical_summary_table %>%
+    mutate(pop_k_mean = exp(pop_log_k_mean),
+           pop_max_growth_mean = exp(pop_log_max_growth_mean),
+           pop_size_at_max_growth_mean = exp(pop_log_size_at_max_growth_mean))
+
+  #Sample sizes
+  ind_summary_size <- full_data$ind_data_full %>%
+    group_by(sp_code) %>%
+    summarise(samp = length(unique(BCI_ind_id)),
+              median_ind_max_growth = median(ind_max_growth),
+              median_ind_size_at_max_growth = median(ind_size_at_max_growth),
+              median_ind_k = median(ind_k),
+              gmax_95 = as.numeric(quantile(ind_max_growth, 0.95)),
+              max_est_size = max(S_final))
+
+  obs_growth_data <- full_data$measurement_data_full %>%
+    group_by(BCI_ind_id) %>%
+    mutate(interval = lead(time) - time,
+           delta_obs = (lead(y_obs) - y_obs)/interval) %>%
+    ungroup() %>%
+    filter(!is.na(delta_obs)) %>%
+    group_by(sp_code) %>%
+    summarise(gobs_95 = as.numeric(quantile(delta_obs, 0.95)))
+
+  #Get species-level model data
+  sp_model_wide <- full_data$sp_model_data_full %>%
+    mutate(par_name_factor = as.factor(par_name)) %>%
+    select(sp_code, par_name_factor, median_est) %>%
+    spread(par_name_factor, median_est) %>%
+    rename(pop_level_model_k = pop_k,
+           pop_level_model_max_growth = pop_max_growth,
+           pop_level_model_size_at_max_growth = pop_size_at_max_growth)
+
+  #Load in walltime data
+  species_walltime <- read.csv("input/species_walltime.csv")
+
+  species_summary_table <- left_join(sp_names, hierarchical_summary_table, by = "sp_code") %>%
+    left_join(ind_summary_size, by = "sp_code") %>%
+    left_join(obs_growth_data, by = "sp_code") %>%
+    left_join(species_walltime, by = "sp_code") %>%
+    left_join(sp_model_wide, by = "sp_code")
 }
 
 #-----------------------------------------------------------------------------#
