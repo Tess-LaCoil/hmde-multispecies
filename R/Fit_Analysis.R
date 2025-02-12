@@ -31,6 +31,9 @@ run_analysis <- function(sp_codes,
   species_summary_table <- build_sp_tables(full_data)
   write.csv(species_summary_table, file = "output/data/species_summary_table.csv")
 
+  #Trait stuff
+  trait_analysis(species_summary_table)
+
   #Plots plots plots
   #fig_1_plots(full_data, sp_code = "gar2in")
   plot_3d_scatter(ind_data = full_data$ind_data_full, col_vec)
@@ -202,7 +205,7 @@ construct_full_data_tibbles <- function(sp_codes,
 
 #-----------------------------------------------------------------------------#
 #Construct tables for species-level data
-build_sp_tables <- (full_data){
+build_sp_tables <- function(full_data){
   #Species names
   sp_names <- full_data$sp_data_full %>%
     select(sp_code, species) %>%
@@ -214,6 +217,7 @@ build_sp_tables <- (full_data){
     select(sp_code, par_name_factor, median) %>%
     spread(par_name_factor, median)
 
+  #Renaming parameters to reflect log-normal distribution structure
   names(hierarchical_summary_table) <- c(
     "sp_code","pop_log_k_mean","pop_log_k_sd", "pop_log_max_growth_mean",
     "pop_log_max_growth_sd", "pop_log_size_at_max_growth_mean",
@@ -234,7 +238,8 @@ build_sp_tables <- (full_data){
               median_ind_size_at_max_growth = median(ind_size_at_max_growth),
               median_ind_k = median(ind_k),
               gmax_95 = as.numeric(quantile(ind_max_growth, 0.95)),
-              max_est_size = max(S_final))
+              max_est_size = max(S_final),
+              sd_ind_log_size_at_max_growth = sd(log(ind_size_at_max_growth)))
 
   obs_growth_data <- full_data$measurement_data_full %>%
     group_by(BCI_ind_id) %>%
@@ -267,7 +272,147 @@ build_sp_tables <- (full_data){
     left_join(sp_model_wide, by = "sp_code") %>%
     left_join(trait_table, by = "species")
 
+  table_1 <- species_summary_table %>%
+    select(species, sp_code, samp, walltime)
+  write.csv(table_1, "output/data/Paper_Table_1.csv")
+
+  table_2 <- species_summary_table %>%
+    select(species, pop_max_growth_mean, pop_log_max_growth_sd,
+           pop_size_at_max_growth_mean, pop_log_size_at_max_growth_sd,
+           pop_k_mean, pop_log_k_sd, max_est_size)
+  write.csv(table_2, "output/data/Paper_Table_2.csv")
+
+  table_3 <- species_summary_table %>%
+    select(species, pop_max_growth_mean, gmax_95, gobs_95,
+           pop_log_size_at_max_growth_sd, sd_ind_log_size_at_max_growth,
+           WD, Hmax, mean_b_coeff
+           )
+  write.csv(table_3, "output/data/Paper_Table_3.csv")
+
   return(species_summary_table)
+}
+
+#-----------------------------------------------------------------------------#
+trait_analysis <- function(species_summary_table){
+  growth_comp_data <- species_summary_table %>%
+    select(species,
+           pop_max_growth_mean, gmax_95, gobs_95,
+           WD, Hmax
+    )
+
+  light_comp_data <- species_summary_table %>%
+    select(species,
+           pop_log_size_at_max_growth_sd,
+           sd_ind_log_size_at_max_growth,
+           mean_b_coeff
+    )
+
+  #Plots and test output
+  growth_scatterplot_set <- trait_analysis_stats(trait_data = growth_comp_data,
+                       trait_name = c("WD", "Hmax"),
+                       comp_pair_names = c("pop_max_growth_mean",
+                                           "gmax_95", "gobs_95"),
+                       plot_x_labs = c("Wood density", "Max height"),
+                       plot_y_labs = c("Sp. mean g_max", "Ind. 95% g_max",
+                                       "Obs. 95% growth"))
+  growth_grid <- plot_grid(growth_scatterplot_set[[1]],
+            growth_scatterplot_set[[2]],
+            growth_scatterplot_set[[3]],
+            growth_scatterplot_set[[4]],
+            growth_scatterplot_set[[5]],
+            growth_scatterplot_set[[6]],
+            nrow = 3,
+            byrow = FALSE,
+            align = "hv")
+  file_name <- "output/figures/SizeDens_TraitScatter.svg"
+  ggsave(file_name, plot=growth_grid, width=7, height=10.5)
+
+  light_scatterplot_set <- trait_analysis_stats(trait_data = light_comp_data,
+                       trait_name = "mean_b_coeff",
+                       comp_pair_names = c("pop_log_size_at_max_growth_sd",
+                                           "sd_ind_log_size_at_max_growth"),
+                       plot_x_labs = c("Mean light response"),
+                       plot_y_labs = c("Sp. ln(S_max) sigma", "Ind. ln(S_max) SD"))
+  light_grid <- plot_grid(light_scatterplot_set[[1]],
+            light_scatterplot_set[[2]],
+            nrow = 1)
+  file_name <- "output/figures/light_TraitScatter.svg"
+  ggsave(file_name, plot=light_grid, width=7, height=3.5)
+
+  #Table 4 of rank coeffs
+  trait_corr_pairs <- list(
+    c("pop_max_growth_mean","gmax_95"),
+    c("pop_max_growth_mean","gobs_95"),
+    c("gmax_95","gobs_95"),
+    c("pop_log_size_at_max_growth_sd",
+      "sd_ind_log_size_at_max_growth")
+  )
+  trait_corr_table <- tibble(par_names = c(), r_s = c(), p_val = c())
+
+  for(i in 1:length(trait_corr_pairs)){
+    test <- cor.test(species_summary_table[[trait_corr_pairs[[i]][1]]],
+                     species_summary_table[[trait_corr_pairs[[i]][2]]],
+                     method = "spearman")
+    corr_temp <- tibble(
+      par_names = paste0(trait_corr_pairs[[i]][1], ", ",
+                         trait_corr_pairs[[i]][2]),
+      r_s = test$estimate,
+      p_val = test$p.value
+    )
+    trait_corr_table <- rbind(trait_corr_table, corr_temp)
+  }
+  write.csv(trait_corr_table, "output/data/trait_corr_table.csv")
+}
+
+trait_analysis_stats <- function(trait_data,
+                                 trait_name,
+                                 comp_pair_names,
+                                 plot_x_labs,
+                                 plot_y_labs){
+  scatterplot_set <- list()
+
+  for(i in 1:length(trait_name)){
+    for(j in 1:length(comp_pair_names)){
+      print(paste0("Testing ", trait_name[i], " and ", comp_pair_names[j]))
+      test <- cor.test(trait_data[[trait_name[i]]],
+                       trait_data[[comp_pair_names[j]]], method = "spearman")
+      print(test)
+
+      plot_data <- trait_data[c(trait_name[i], comp_pair_names[j])]
+      names(plot_data) <- c("x", "y")
+
+      if(test$p.value < 3^{-16}){
+        plot_label <- paste(
+          paste0("r_s = ", signif(test$estimate, digits = 3)),
+          "p < 2.2e-16",
+          sep = "\n"
+        )
+      } else {
+        plot_label <- paste(
+          paste0("r_s = ", signif(test$estimate, digits = 3)),
+          paste0("p = ", formatC(test$p.value, format = "e", digits = 3)),
+          sep = "\n"
+        )
+      }
+
+      x_pos <- max(plot_data$x, na.rm = TRUE) -
+                0.2* (max(plot_data$x, na.rm = TRUE) -
+                        min(plot_data$x, na.rm = TRUE))
+      y_pos <- max(plot_data$y, na.rm = TRUE) -
+                0.1* (max(plot_data$y, na.rm = TRUE) -
+                        min(plot_data$y, na.rm = TRUE))
+
+      plot <- ggplot(data = plot_data, aes(x = x, y = y)) +
+        geom_point(colour = "green4", size = 1) +
+        labs(x = plot_x_labs[i], y = plot_y_labs[j]) +
+        annotate("text", x=x_pos, y=y_pos, label= plot_label) +
+        theme_classic()
+
+      scatterplot_set <- append(scatterplot_set, list(plot))
+    }
+  }
+
+  return(scatterplot_set)
 }
 
 #-----------------------------------------------------------------------------#

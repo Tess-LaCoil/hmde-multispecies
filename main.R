@@ -13,6 +13,7 @@
   library(plotly)
   library(GGally)
   library(htmlwidgets)
+  library(svglite)
 }
 
 sp_codes <- c("alsebl",
