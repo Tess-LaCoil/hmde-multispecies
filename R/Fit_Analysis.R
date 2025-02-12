@@ -294,6 +294,36 @@ build_sp_tables <- function(full_data){
 
 #-----------------------------------------------------------------------------#
 trait_analysis <- function(species_summary_table){
+  #All pairs
+  pairs_comp_data <- species_summary_table %>%
+    select(species,
+           pop_max_growth_mean, gmax_95, gobs_95,
+           pop_log_size_at_max_growth_sd,
+           sd_ind_log_size_at_max_growth,
+           WD, Hmax, mean_b_coeff
+    )
+
+  pairs_plots <- list()
+  for(i in 7:9){
+    for(j in 2:6){
+      if(i != j){
+        plot <- pairs_scatter_spearmans_plot(dataset = pairs_comp_data,
+                                             trait = names(pairs_comp_data)[i],
+                                             pair = names(pairs_comp_data)[j],
+                                             x_lab = names(pairs_comp_data)[i],
+                                             y_lab = names(pairs_comp_data)[j])
+        pairs_plots <- append(pairs_plots, list(plot))
+      }
+    }
+  }
+  pairs_grid <- plot_grid(plotlist = pairs_plots,
+                    nrow = 5,
+                    byrow = FALSE,
+                    align = "hv")
+  file_name <- "output/figures/AllPairs_TraitScatter.svg"
+  ggsave(file_name, plot=pairs_grid, width=12, height=20)
+
+  #Specific comparisons for density, max size, and light response
   growth_comp_data <- species_summary_table %>%
     select(species,
            pop_max_growth_mean, gmax_95, gobs_95,
@@ -374,45 +404,64 @@ trait_analysis_stats <- function(trait_data,
   for(i in 1:length(trait_name)){
     for(j in 1:length(comp_pair_names)){
       print(paste0("Testing ", trait_name[i], " and ", comp_pair_names[j]))
-      test <- cor.test(trait_data[[trait_name[i]]],
-                       trait_data[[comp_pair_names[j]]], method = "spearman")
-      print(test)
 
-      plot_data <- trait_data[c(trait_name[i], comp_pair_names[j])]
-      names(plot_data) <- c("x", "y")
-
-      if(test$p.value < 3^{-16}){
-        plot_label <- paste(
-          paste0("r_s = ", signif(test$estimate, digits = 3)),
-          "p < 2.2e-16",
-          sep = "\n"
-        )
-      } else {
-        plot_label <- paste(
-          paste0("r_s = ", signif(test$estimate, digits = 3)),
-          paste0("p = ", formatC(test$p.value, format = "e", digits = 3)),
-          sep = "\n"
-        )
-      }
-
-      x_pos <- max(plot_data$x, na.rm = TRUE) -
-                0.2* (max(plot_data$x, na.rm = TRUE) -
-                        min(plot_data$x, na.rm = TRUE))
-      y_pos <- max(plot_data$y, na.rm = TRUE) -
-                0.1* (max(plot_data$y, na.rm = TRUE) -
-                        min(plot_data$y, na.rm = TRUE))
-
-      plot <- ggplot(data = plot_data, aes(x = x, y = y)) +
-        geom_point(colour = "green4", size = 1) +
-        labs(x = plot_x_labs[i], y = plot_y_labs[j]) +
-        annotate("text", x=x_pos, y=y_pos, label= plot_label) +
-        theme_classic()
+      plot <- pairs_scatter_spearmans_plot(dataset = trait_data,
+                                   trait = trait_name[i],
+                                   pair = comp_pair_names[j],
+                                   x_lab = plot_x_labs[i],
+                                   y_lab = plot_y_labs[j])
 
       scatterplot_set <- append(scatterplot_set, list(plot))
     }
   }
 
   return(scatterplot_set)
+}
+
+pairs_scatter_spearmans_plot <- function(dataset,
+                                         trait,
+                                         pair,
+                                         x_lab,
+                                         y_lab,
+                                         print_test = FALSE){
+  test <- cor.test(dataset[[trait]],
+                   dataset[[pair]], method = "spearman")
+
+  if(print_test){
+    print(test)
+  }
+
+  plot_data <- dataset[c(trait, pair)]
+  names(plot_data) <- c("x", "y")
+
+  if(test$p.value < 3^{-16}){
+    plot_label <- paste(
+      paste0("r_s = ", signif(test$estimate, digits = 3)),
+      "p < 2.2e-16",
+      sep = "\n"
+    )
+  } else {
+    plot_label <- paste(
+      paste0("r_s = ", signif(test$estimate, digits = 3)),
+      paste0("p = ", formatC(test$p.value, format = "e", digits = 3)),
+      sep = "\n"
+    )
+  }
+
+  x_pos <- max(plot_data$x, na.rm = TRUE) -
+    0.2* (max(plot_data$x, na.rm = TRUE) -
+            min(plot_data$x, na.rm = TRUE))
+  y_pos <- max(plot_data$y, na.rm = TRUE) -
+    0.1* (max(plot_data$y, na.rm = TRUE) -
+            min(plot_data$y, na.rm = TRUE))
+
+  plot <- ggplot(data = plot_data, aes(x = x, y = y)) +
+    geom_point(colour = "green4", size = 1) +
+    labs(x = x_lab, y = y_lab) +
+    annotate("text", x=x_pos, y=y_pos, label= plot_label) +
+    theme_classic()
+
+  return(plot)
 }
 
 #-----------------------------------------------------------------------------#
