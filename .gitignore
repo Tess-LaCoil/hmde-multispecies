@@ -3,5 +3,4 @@
 .RData
 .Ruserdata
 input/input_ignore/
-output/figures/
-output/data/
+output/
