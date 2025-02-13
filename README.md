@@ -9,7 +9,9 @@ We use the statistical method of a hierarchical Bayesian longitudinal model as
 introduced by O'Brien et al. (2024), implemented through the [hmde](https://github.com/traitecoevo/hmde) package. 
 
 The growth function we fit was first used in Canham et al. (2004), and is given by
+
 $$g \left( S \left( t \right), g_{max}, S_{max}, k \right) = \frac{dS}{dt} = g_{max} \exp \Bigg( -\frac{1}{2} \bigg( \frac{ \ln \left( S \left( t \right) / S_{max} \right) }{k} \bigg)^2 \Bigg), $$ 
+
 where $g_{max}$ is the maximum growth rate, $S_{max}$ is the size at which that maximum occurs, and $k$ controls how narrow or wide the peak is.
 
 The hierarchical model estimates $g_{max}$, $S_{max}$ and $k$ for each individual, 
@@ -31,24 +33,24 @@ The table below gives the species names, species code from the BCI data, sample 
 and runtime for the hierarchical model fit to that species.
 
 |Species | Species code | Sample size | Walltime|
-| :---------- | :---------- | :------: | :------: |
-| Alseis blackiana | alsebl | 300 | 153 |
-| Beilschmiedia tovarensis | beilpe | 300 | 147 |
-| Cordia bicolor | cordbi | 300 | 28 |
-| Faramea occidentalis | faraoc | 300 | 21 |
-| Garcinia recondita | gar2in | 300 | 32 |
-| Hirtella triandra | hirttr | 300 | 36 |
-| Jacaranda copaia | jac1co | 127 | 4 |
-| Prioria copaifera | pri2co | 300 | 41 |
-| Protium panamense | protpa | 300 | 75 |
-| Protium tenuifolium | protte | 300 | 108 |
-| Quararibea asterolepis | quaras | 300 | 50 |
-| Swartzia simplex var. 1 | swars1 | 300 | 143 |
-| Swartzia simplex var. 2 | swars2 | 300 | 185 |
-| Simarouba amara | simaam | 234 | 26 |
-| Tachigali panamensis | tachve | 300 | 64 |
-| Protium stevensonii | tet2pa | 300 | 84 |
-| Trichilia tuberculata | tri2tu | 300 | 135 |
+| :---------- | :----------: | :------: | :------: |
+| *Alseis blackiana* | alsebl | 300 | 153 |
+| *Beilschmiedia tovarensis* | beilpe | 300 | 147 |
+| *Cordia bicolor* | cordbi | 300 | 28 |
+| *Faramea occidentalis* | faraoc | 300 | 21 |
+| *Garcinia recondita* | gar2in | 300 | 32 |
+| *Hirtella triandra* | hirttr | 300 | 36 |
+| *Jacaranda copaia* | jac1co | 127 | 4 |
+| *Prioria copaifera* | pri2co | 300 | 41 |
+| *Protium panamense* | protpa | 300 | 75 |
+| *Protium tenuifolium* | protte | 300 | 108 |
+| *Quararibea asterolepis* | quaras | 300 | 50 |
+| *Swartzia simplex var. 1* | swars1 | 300 | 143 |
+| *Swartzia simplex var. 2* | swars2 | 300 | 185 |
+| *Simarouba amara* | simaam | 234 | 26 |
+| *Tachigali panamensis* | tachve | 300 | 64 |
+| *Protium stevensonii* | tet2pa | 300 | 84 |
+| *Trichilia tuberculata* | tri2tu | 300 | 135 |
 
 ## References
 Canham, C. D., Papaik, M. J., Uriarte, M., McWilliams, W. H., Jenkins, J. C., & Twery, M. J. (2006). Neighborhood analyses of canopy tree competition along environmental gradients in New England forests. Ecological applications, 16(2), 540-554.
