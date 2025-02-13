@@ -274,20 +274,22 @@ build_sp_tables <- function(full_data){
 
   table_1 <- species_summary_table %>%
     select(species, sp_code, samp, walltime)
-  write.csv(table_1, "output/data/Paper_Table_1.csv")
+  write.csv(table_1, "output/data/Paper_Table_1.csv", row.names = FALSE)
 
   table_2 <- species_summary_table %>%
     select(species, pop_max_growth_mean, pop_log_max_growth_sd,
            pop_size_at_max_growth_mean, pop_log_size_at_max_growth_sd,
            pop_k_mean, pop_log_k_sd, max_est_size)
-  write.csv(table_2, "output/data/Paper_Table_2.csv")
+  table_2[,2:8] <- signif(table_2[,2:8], digits = 4)
+  write.csv(table_2, "output/data/Paper_Table_2.csv", row.names = FALSE)
 
   table_3 <- species_summary_table %>%
     select(species, pop_max_growth_mean, gmax_95, gobs_95,
            pop_log_size_at_max_growth_sd, sd_ind_log_size_at_max_growth,
            WD, Hmax, mean_b_coeff
            )
-  write.csv(table_3, "output/data/Paper_Table_3.csv")
+  table_3[,2:9] <- signif(table_3[,2:9], digits = 4)
+  write.csv(table_3, "output/data/Paper_Table_3.csv", row.names = FALSE)
 
   return(species_summary_table)
 }
@@ -392,6 +394,10 @@ trait_analysis <- function(species_summary_table){
     trait_corr_table <- rbind(trait_corr_table, corr_temp)
   }
   write.csv(trait_corr_table, "output/data/trait_corr_table.csv")
+
+  trait_corr_table_rounded <- trait_corr_table
+  trait_corr_table_rounded[,2:3] <- signif(trait_corr_table[,2:3], digits = 4)
+  write.csv(trait_corr_table_rounded, "output/data/trait_corr_table_rounded.csv")
 }
 
 trait_analysis_stats <- function(trait_data,

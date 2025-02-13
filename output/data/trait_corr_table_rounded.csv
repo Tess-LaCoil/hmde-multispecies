@@ -1,0 +1,5 @@
+"","par_names","r_s","p_val"
+"1","pop_max_growth_mean, gmax_95",0.9142,0
+"2","pop_max_growth_mean, gobs_95",0.9755,5.41e-06
+"3","gmax_95, gobs_95",0.9314,0
+"4","pop_log_size_at_max_growth_sd, sd_ind_log_size_at_max_growth",0.7917,0.0002306
