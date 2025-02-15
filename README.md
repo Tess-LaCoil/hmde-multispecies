@@ -57,6 +57,6 @@ Canham, C. D., Papaik, M. J., Uriarte, M., McWilliams, W. H., Jenkins, J. C., & 
 
 Condit, R., Pérez, R., Aguilar, S., Lao, S., Foster, R., & Hubbell, S. (2019). Complete data from the Barro Colorado 50-ha plot: 423617 trees, 35 years. https://datadryad.org/stash/dataset/doi:10.15146/5xcp-0d46
 
-O'Brien, T., Warton, D., & Falster, D. (2025). Yes, they're all individuals: Hierarchical models for repeat survey data improve estimates of tree growth and size. Methods in Ecology and Evolution, 16(1), 183-196.
+O'Brien, T., Warton, D., & Falster, D. (2024). Yes, they're all individuals: Hierarchical models for repeat survey data improve estimates of tree growth and size. Methods in Ecology and Evolution, 16(1), 183-196.
 
 O’Brien, T. A., Kar, F., Warton, D., and Falster, D. S. (2025). hmde: Hierarchical methods for differential equations. bioRxiv.
