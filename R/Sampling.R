@@ -79,8 +79,7 @@ sample_data <- function(sample_size,
       dens_plot <- plot_grid(
         full_data_size,
         sample_data_size,
-        nrow = 2,
-        labels = paste0("Size density for ", sample_data$species[1])
+        nrow = 2
       )
 
       file_name <- paste0("output/figures/", sp_codes[i], "_SizeDens.svg")
