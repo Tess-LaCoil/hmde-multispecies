@@ -63,10 +63,28 @@ run_analysis <- function(sp_codes,
                                           "ind_size_at_max_growth",
                                           "ind_k"),
                      growth_function = hmde_model_des("canham_single_ind"),
-                     col_vec)
+                     col_vec,
+                     exclude_vec = c(21260, 83062)) #Exclude extremes from G. recondita, H. Triandra
 
   six_species_focus(measurement_data = full_data$measurement_data_full,
-                    individual_data = full_data$ind_data_full)
+                    individual_data = full_data$ind_data_full,
+                    plot_initial_sizes = FALSE,
+                    exclude_vec = c(21260, 83062), #Excluding two extreme individuals
+                    focus_ind_list <- list(
+                      faraoc = c(6, 37, 14, 38, 26), #F. occidentalis - faraoc done
+                      gar2in = c(3, 12, 72, 126, 160), #G. recondita - gar2in done
+                      hirttr = c(57, 58, 28, 8, 2), #H. triandra - hirttr done
+                      jac1co = c(58, 50, 49, 1, 7), #J. copaia - jac1co done
+                      simaam =  c(21, 23, 11, 163, 5), #S. amara  - simaam done
+                      tachve = c(35, 31, 4, 8, 34) #T. panamensis - tachve done
+                    ),
+                    sp_codes <- c("faraoc", "gar2in", "hirttr",
+                                  "jac1co", "simaam", "tachve"),
+                    sp_names <- c("Faramea occidentalis", "Garcinia recondita",
+                                  "Hirtella triandra", "Jacaranda copaia",
+                                  "Simarouba amara", "Tachigali panamensis"),
+                    col_vec <- c("#afa100", "#72b000", "#00b81f",
+                                 "#00bf7d", "#cf78ff", "#f066ea"))
 }
 
 #-----------------------------------------------------------------------------#
@@ -592,13 +610,16 @@ plot_growth_pieces <- function(individual_data,
                                measurement_data,
                                species_level_data,
                                growth_par_names,
-                               growth_function, col_vec){
+                               growth_function,
+                               col_vec,
+                               exclude_vec = c()){
   print("Producing plots of growth histories.")
   species_code <- unique(individual_data$sp_code)
   for(i in 1:length(species_code)){
     #Pull out data for  species data
     temp_ind_data <- individual_data %>%
-      filter(sp_code == species_code[i])
+      filter(sp_code == species_code[i],
+             !BCI_ind_id %in% exclude_vec)
     n_ind <- nrow(temp_ind_data)
 
     #Get data frame of the growth parameter estimates
@@ -690,27 +711,32 @@ ggplot_sample_growth_trajectories <- function(post_pars, growth_function,
 #Analysis of 6 focus species
 six_species_focus <- function(measurement_data,
                               individual_data,
-                              plot_initial_sizes = FALSE){
-  sp_codes <- c("gar2in",
+                              plot_initial_sizes = FALSE,
+                              exclude_vec = c(),
+                              focus_ind_list,
+                              sp_codes,
+                              sp_names,
+                              col_vec){
+  sp_codes <- c("faraoc",
+                "gar2in",
                 "hirttr",
-                "swars1",
+                "jac1co",
                 "simaam",
-                "tachve",
-                "tet2pa")
-  sp_names <- c("Garcinia recondita",
+                "tachve")
+  sp_names <- c("Faramea occidentalis",
+                "Garcinia recondita",
                 "Hirtella triandra",
-                "Swartzia simplex",
+                "Jacaranda copaia",
                 "Simarouba amara",
-                "Tachigali panamensis",
-                "Protium stevensonii")
-  col_vec <- c("#72b000",
+                "Tachigali panamensis")
+  col_vec <- c("#afa100",
+               "#72b000",
                "#00b81f",
-               "#77a5ff",
+               "#00bf7d",
                "#cf78ff",
-               "#f066ea",
-               "#ff62bc")
+               "#f066ea")
   if(plot_initial_sizes){
-    for(i in 1:length(sp_codes)){
+    for(i in c(4)){ #1:length(sp_codes)){
       temp_measurement_data <- measurement_data %>%
         filter(sp_code == sp_codes[i])
       temp_ind_data <- individual_data %>%
@@ -722,21 +748,14 @@ six_species_focus <- function(measurement_data,
     }
   }
 
-  focus_ind_list <- list(
-    gar2in = c(3, 12, 72, 126, 160), #G. recondita - gar2in done
-    hirttr = c(57, 58, 28, 8, 2), #H. triandra - hirttr done
-    swars1 = c(33, 71, 100, 4, 5), #S. simplex  - swaras1 done
-    simaam =  c(21, 23, 11, 163, 5), #S. amara  - simaam done
-    tachve = c(35, 31, 4, 8, 34), #T. panamensis - tachve done
-    tet2pa = c(26, 51, 112, 9, 2) #P. stevensonii - tet2pa done
-  )
-
   for(i in 1:length(sp_codes)){
     focus_ind_vec <- focus_ind_list[[sp_codes[i]]]
     temp_measurement_data <- measurement_data %>%
-      filter(sp_code == sp_codes[i])
+      filter(sp_code == sp_codes[i],
+             !BCI_ind_id %in% exclude_vec)
     temp_ind_data <- individual_data %>%
-      filter(sp_code == sp_codes[i])
+      filter(sp_code == sp_codes[i],
+             !BCI_ind_id %in% exclude_vec)
 
     plot_focus_ind_figs(focus_inds = focus_ind_vec,
                         measurement_data = temp_measurement_data,
