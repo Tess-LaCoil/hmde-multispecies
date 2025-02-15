@@ -717,24 +717,6 @@ six_species_focus <- function(measurement_data,
                               sp_codes,
                               sp_names,
                               col_vec){
-  sp_codes <- c("faraoc",
-                "gar2in",
-                "hirttr",
-                "jac1co",
-                "simaam",
-                "tachve")
-  sp_names <- c("Faramea occidentalis",
-                "Garcinia recondita",
-                "Hirtella triandra",
-                "Jacaranda copaia",
-                "Simarouba amara",
-                "Tachigali panamensis")
-  col_vec <- c("#afa100",
-               "#72b000",
-               "#00b81f",
-               "#00bf7d",
-               "#cf78ff",
-               "#f066ea")
   if(plot_initial_sizes){
     for(i in c(4)){ #1:length(sp_codes)){
       temp_measurement_data <- measurement_data %>%
