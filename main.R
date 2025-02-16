@@ -5,7 +5,7 @@
   library(rstantools)
   library(hmde)
   library(tidyverse)
-  library(vioplot)
+  library(deSolve)
   library(ggridges)
   library(cowplot)
   library(parallel)
