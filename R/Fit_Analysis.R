@@ -325,14 +325,14 @@ trait_analysis <- function(species_summary_table){
   pairs_comp_data <- species_summary_table %>%
     select(species,
            pop_max_growth_mean, gmax_95, gobs_95,
-           pop_log_size_at_max_growth_sd,
+           pop_log_size_at_max_growth_sd, pop_level_model_max_growth,
            sd_ind_log_size_at_max_growth,
            WD, Hmax, mean_b_coeff
     )
 
   pairs_plots <- list()
-  for(i in 7:9){
-    for(j in 2:6){
+  for(i in 8:10){
+    for(j in 2:7){
       if(i != j){
         plot <- pairs_scatter_spearmans_plot(dataset = pairs_comp_data,
                                              trait = names(pairs_comp_data)[i],
@@ -344,15 +344,16 @@ trait_analysis <- function(species_summary_table){
     }
   }
   pairs_grid <- plot_grid(plotlist = pairs_plots,
-                    nrow = 5,
+                    nrow = 6,
                     byrow = FALSE,
                     align = "hv")
   file_name <- "output/figures/AllPairs_TraitScatter.svg"
-  ggsave(file_name, plot=pairs_grid, width=12, height=20)
+  ggsave(file_name, plot=pairs_grid, width=12, height=18)
 
   #Specific comparisons for density, max size, and light response
   growth_comp_data <- species_summary_table %>%
     select(species,
+           pop_level_model_max_growth,
            pop_max_growth_mean, gmax_95, gobs_95,
            WD, Hmax
     )
@@ -368,21 +369,17 @@ trait_analysis <- function(species_summary_table){
   growth_scatterplot_set <- trait_analysis_stats(trait_data = growth_comp_data,
                        trait_name = c("WD", "Hmax"),
                        comp_pair_names = c("pop_max_growth_mean",
+                                           "pop_level_model_max_growth",
                                            "gmax_95", "gobs_95"),
                        plot_x_labs = c("Wood density", "Max height"),
-                       plot_y_labs = c("Sp. mean g_max", "Ind. 95% g_max",
-                                       "Obs. 95% growth"))
-  growth_grid <- plot_grid(growth_scatterplot_set[[1]],
-            growth_scatterplot_set[[2]],
-            growth_scatterplot_set[[3]],
-            growth_scatterplot_set[[4]],
-            growth_scatterplot_set[[5]],
-            growth_scatterplot_set[[6]],
-            nrow = 3,
+                       plot_y_labs = c("Sp. mean g_max", "Sp. level g_max",
+                                       "Ind. 95% g_max", "Obs. 95% growth"))
+  growth_grid <- plot_grid(plotlist = growth_scatterplot_set,
+            ncol = 2,
             byrow = FALSE,
             align = "hv")
   file_name <- "output/figures/SizeDens_TraitScatter.svg"
-  ggsave(file_name, plot=growth_grid, width=7, height=10.5)
+  ggsave(file_name, plot=growth_grid, width=7, height=14)
 
   light_scatterplot_set <- trait_analysis_stats(trait_data = light_comp_data,
                        trait_name = "mean_b_coeff",
@@ -398,6 +395,7 @@ trait_analysis <- function(species_summary_table){
 
   #Table 4 of rank coeffs
   trait_corr_pairs <- list(
+    c("pop_max_growth_mean","pop_level_model_max_growth"),
     c("pop_max_growth_mean","gmax_95"),
     c("pop_max_growth_mean","gobs_95"),
     c("gmax_95","gobs_95"),
