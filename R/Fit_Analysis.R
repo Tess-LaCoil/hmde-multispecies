@@ -89,7 +89,9 @@ run_analysis <- function(sp_codes,
   fig_1_plots(chosen_sp_code = "gar2in",
               colour = "#72b000",
               focus_ind_vec = c(3, 12, 72, 126, 160),
-              full_data)
+              full_data,
+              exclude_vec = c(21260, 83062)
+              )#Excluding two extreme individuals
 }
 
 #-----------------------------------------------------------------------------#
@@ -928,178 +930,100 @@ plot_3d_scatter <- function(ind_data, col_vec){
 #Fig. 1 plot
 fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
                         full_data, species_summary_table,
-                        growth_function = hmde_canham_de){
+                        growth_function = hmde_canham_de,
+                        exclude_vec = NULL){
   species_summary_vec <- species_summary_table %>%
     filter(sp_code == chosen_sp_code)
 
-  function_pars <- c(
+  pars_combo <- c(
     g_max = species_summary_vec$pop_level_model_max_growth,
-    s_max = species_summary_vec$pop_level_model_size_at_max_growth,
+    y_max = species_summary_vec$pop_level_model_size_at_max_growth,
     k = species_summary_vec$pop_level_model_k
   )
 
   ind_data <- full_data$ind_data_full %>%
-    filter(sp_code == chosen_sp_code)
+    filter(sp_code == chosen_sp_code,
+           !BCI_ind_id %in% exclude_vec)
   measurement_data <- full_data$measurement_data_full %>%
-    filter(sp_code == chosen_sp_code) %>%
+    filter(sp_code == chosen_sp_code,
+           !BCI_ind_id %in% exclude_vec) %>%
     group_by(ind_id) %>%
     mutate(obs_index = rank(time)) %>%
     ungroup()
 
   #Get size estimates from species-level model
   sp_level_measurement_data <- tibble()
-  for(i in 1:nrow(ind_data)){ #Iterate through individuals and project forward from s_0
+  for(i in ind_data$ind_id){ #Iterate through individuals and project forward from s_0
     temp <- measurement_data %>%
       filter(ind_id == i)
 
-    size_est <- c(temp$y_obs[1], ode(temp$y_obs[1],
+    yini <- c(Y = temp$y_obs[1])
+    size_est <- ode(yini,
         times = temp$time,
-        func = canham_DE,
-        parms = function_pars,
-        method = "ode45")
-    )
-    temp$S_hat_species <- size_est
-
-    temp <- temp %>% #Get growth estimates
-      mutate(G_hat_species = lead(S_hat_species) - S_hat_species,
-             G_obs = lead(y_obs) - y_obs)
-    temp$G_hat_species[max(temp$census)] = growth_function(x = temp$S_hat_species[nrow(temp)],
-                                                           pars = function_pars) * 5
+        func = Canham_DE,
+        parms = pars_combo,
+        method = "ode45")[,2]
+    temp$y_hat_species <- size_est
 
     sp_level_measurement_data <- rbind(sp_level_measurement_data, temp)
   }
 
   #Data for plots of sizes over time
   plotting_data <- sp_level_measurement_data %>%
-    filter(treeid_factor %in% focus_ind_vec)
+    filter(ind_id %in% focus_ind_vec)
 
   data_h <- rbind(data.frame(size=plotting_data$y_obs,
                              time=plotting_data$time,
                              cond=rep("Observed", times=length(plotting_data$time)),
-                             id_num = paste(plotting_data$treeid, "Obs") ),
-                  data.frame(size=plotting_data$S_hat,
+                             id_num = paste(plotting_data$BCI_ind_id, "Obs") ),
+                  data.frame(size=plotting_data$y_hat,
                              time=plotting_data$time,
                              cond=rep("Estimated", times=length(plotting_data$time)),
-                             id_num = paste(plotting_data$treeid, "Est")
+                             id_num = paste(plotting_data$BCI_ind_id, "Est")
                   )) %>%
     mutate(time = 1990 + round(time, digits=0))
 
   data_sp <- rbind(data.frame(size=plotting_data$y_obs,
                               time=plotting_data$time,
                               cond=rep("Observed", times=length(plotting_data$time)),
-                              id_num = paste(plotting_data$treeid, "Obs") ),
-                   data.frame(size=plotting_data$S_hat_species,
+                              id_num = paste(plotting_data$BCI_ind_id, "Obs") ),
+                   data.frame(size=plotting_data$y_hat_species,
                               time=plotting_data$time,
                               cond=rep("Estimated", times=length(plotting_data$time)),
-                              id_num = paste(plotting_data$treeid, "Est")
+                              id_num = paste(plotting_data$BCI_ind_id, "Est")
                    )) %>%
-    mutate(time = 1990 + round(time, digits=0))
-
-  data_combined <- rbind(data.frame(size=plotting_data$y_obs,
-                                    time=plotting_data$time,
-                                    cond=rep("Observed", times=length(plotting_data$time)),
-                                    id_num = paste(plotting_data$treeid, "Obs")
-  ),
-  data.frame(size=plotting_data$S_hat,
-             time=plotting_data$time,
-             cond=rep("Hierarchical fit", times=length(plotting_data$time)),
-             id_num = paste(plotting_data$treeid, "Hier")
-  ),
-  data.frame(size=plotting_data$S_hat_species,
-             time=plotting_data$time,
-             cond=rep("Species average", times=length(plotting_data$time)),
-             id_num = paste(plotting_data$treeid, "Sp")
-  )) %>%
     mutate(time = 1990 + round(time, digits=0))
 
   #Produce size over time plots
   h_sizes_plot <- ggplot_multi_ind_life_history(data_h,
                                                 species = "G. recondita: hierarchical fit",
-                                                colour = "#72b000") +
-    theme(text = element_text(size = 10))
+                                                colour = colour) +
+    theme(text = element_text(size = 10),
+          legend.position = "inside",
+          legend.position.inside = c(0.1, 0.9))
   sp_sizes_plot <- ggplot_multi_ind_life_history(data_sp,
                                                  species = "G. recondita: species-level fit",
-                                                 colour = "#72b000") +
-    theme(text = element_text(size = 10))
-
-  colour_vals <- c("#72b000", "#000000", "#517e00")
-  combined_sizes_plot <- ggplot(data = data_combined, aes(x = time, y = size, group = id_num)) +
-    geom_line(aes(color=as.factor(cond),
-                  alpha = as.factor(cond),
-                  group = id_num,
-                  linetype=as.factor(cond)), linewidth=1.1) +
-    geom_point(aes(color=as.factor(cond),
-                   shape=as.factor(cond),
-                   alpha = as.factor(cond)), size = 2.5) +
-    scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
-    scale_color_manual(values = colour_vals) +
-    scale_alpha_manual(values = c(1, 0.5, 1)) +
-    xlab("Year") +
-    ylab("Diameter at breast height (DBH) cm") +
-    ggtitle("G. recondita individual trajectories") +
-    labs(color = NULL, shape=NULL, linetype = NULL, alpha=NULL) +
-    theme_classic() +
-    theme(legend.position = "inside",
-          legend.position.inside = c(0.2, 0.9))
-
-  combined_sizes_plot_SPHide <- ggplot(data = data_combined, aes(x = time, y = size, group = id_num)) +
-    geom_line(aes(color=as.factor(cond),
-                  alpha = as.factor(cond),
-                  group = id_num,
-                  linetype=as.factor(cond)), linewidth=1.1) +
-    geom_point(aes(color=as.factor(cond),
-                   shape=as.factor(cond),
-                   alpha = as.factor(cond)), size = 2.5) +
-    scale_linetype_manual(values = c("solid", "dashed", "dotted")) +
-    scale_color_manual(values = colour_vals) +
-    scale_alpha_manual(values = c(1, 0.5, 0)) +
-    xlab("Year") +
-    ylab("Diameter at breast height (DBH) cm") +
-    ggtitle("G. recondita individual trajectories") +
-    labs(color = NULL, shape=NULL, linetype = NULL, alpha=NULL) +
-    theme_classic() +
-    theme(legend.position = "inside",
-          legend.position.inside = c(0.2, 0.9))
-
-  #Function plot for Canham
-  args_list <- list(pars=c(2, 8, 0.512))
-
-  canham_function <- ggplot() +
-    geom_function(fun=growth_function, args=args_list, alpha=1,
-                  color="black", linewidth=0.8, xlim=c(1, 35)) +
-    geom_segment(aes(x = 1, y = 2, xend = 8, yend = 2), linetype = "dotted") +
-    geom_segment(aes(x = 8, y = 0, xend = 8, yend = 2), linetype = "dotted") +
-    geom_segment(aes(x = 4.5, y = 1, xend = 14.7,  yend = 1), linetype = "dotted") +
-    labs(x = expression(S(t)), y = expression(g), title = "Canham growth function") +
-    scale_x_continuous(labels=c(expression(S[max])), breaks = c(8),
-                       expand = c(0, 0), limits = c(0.8, 35.1)) +
-    scale_y_continuous(labels=c(expression(g[max])), breaks = c(2),
-                       expand = c(0, 0), limits = c(0, 2.05)) +
-    annotate("text", x = 10, y = 1.06, label = expression(k), size = 4.5) +
-    theme_classic() +
-    theme(axis.line = element_line(arrow = arrow(angle = 30,
-                                                 length = unit(1.5, "mm"),
-                                                 ends = "last",
-                                                 type = "closed")),
-          axis.text.x = element_text(size = 12),
-          axis.text.y = element_text(size = 12))
+                                                 colour = colour) +
+    theme(text = element_text(size = 10),
+          legend.position = "inside",
+          legend.position.inside = c(0.1, 0.9))
 
   #Produce growth function plots
   focus_ind_pars <- ind_data %>%
-    filter(treeid_factor %in% focus_ind_vec)
+    filter(ind_id %in% focus_ind_vec)
 
-  post_pars <- data.frame(g_max = ind_data$canham_max_growth_hat,
-                          s_max = ind_data$canham_diameter_at_max_growth_hat,
-                          k = ind_data$canham_K_hat)
-  focus_post_pars <- data.frame(g_max = focus_ind_pars$canham_max_growth_hat,
-                                s_max = focus_ind_pars$canham_diameter_at_max_growth_hat,
-                                k = focus_ind_pars$canham_K_hat)
+  post_pars <- data.frame(g_max = ind_data$ind_max_growth,
+                          s_max = ind_data$ind_size_at_max_growth,
+                          k = ind_data$ind_k)
+  focus_post_pars <- data.frame(g_max = focus_ind_pars$ind_max_growth,
+                                s_max = focus_ind_pars$ind_size_at_max_growth,
+                                k = focus_ind_pars$ind_k)
 
   h_g_plot <- ggplot_sample_growth_trajectories(post_pars,
-                                                growth_function,
+                                                hmde_canham_de,
                                                 max_growth_size = max(ind_data$S_final),
                                                 min_growth_size = 1,
-                                                S_0 = ind_data$canham_S_0_hat,
+                                                S_0 = ind_data$S_initial,
                                                 S_final = ind_data$S_final,
                                                 colour = "#72b000",
                                                 species = "Growth functions fit to individuals") +
@@ -1108,8 +1032,8 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
   for(i in 1:nrow(focus_post_pars)){
     args_list <- list(pars=focus_post_pars[i,])
     h_g_plot <- h_g_plot +
-      geom_function(fun=growth_function, args=args_list, alpha=1,
-                    color="#333333", linewidth=1, xlim=c(focus_ind_pars$canham_S_0_hat[i],
+      geom_function(fun=hmde_canham_de, args=args_list, alpha=1,
+                    color="#333333", linewidth=1, xlim=c(focus_ind_pars$S_initial[i],
                                                          focus_ind_pars$S_final[i]))
   }
 
@@ -1117,7 +1041,7 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
   ylims <- c(0, layer_scales(h_g_plot)$y$range$range[2])
   args_list <- list(pars=function_pars)
   sp_g_plot <- ggplot() +
-    geom_function(fun=growth_function, args=args_list, alpha=1,
+    geom_function(fun=hmde_canham_de, args=args_list, alpha=1,
                   color="#333333", linewidth=1, xlim=c(1,
                                                        max(ind_data$S_final))) +
     ylim(ylims) +
@@ -1126,94 +1050,20 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
     theme_classic() +
     theme(text = element_text(size = 10))
 
-  #Scatter plot of growth
-  size_scatter_data <- rbind(data.frame(y_obs=sp_level_measurement_data$y_obs,
-                                        G_obs = sp_level_measurement_data$G_obs,
-                                        S_hat = sp_level_measurement_data$S_hat,
-                                        G_hat = sp_level_measurement_data$G_hat,
-                                        cond=rep("Hierarchical fit", times=length(plotting_data$time))),
+  #Scatter plot of size
+  size_scatter_data <- rbind(data.frame(y_obs=measurement_data$y_obs,
+                                        y_hat = measurement_data$y_hat,
+                                        cond="Hierarchical fit"),
                              data.frame(y_obs=sp_level_measurement_data$y_obs,
-                                        G_obs = sp_level_measurement_data$G_obs,
-                                        S_hat = sp_level_measurement_data$S_hat_species,
-                                        G_hat = sp_level_measurement_data$G_hat_species,
-                                        cond=rep("Species-level fit", times=length(plotting_data$time)))) %>%
-    arrange(desc(as.numeric(as.factor(cond)))) %>%
-    mutate(size_resid = S_hat - y_obs,
-           growth_resid = G_hat - G_obs)
-
-  growth_scatter_data <- size_scatter_data %>%
-    na.omit()
-
-  size_scatter_plot <- ggplot(data=size_scatter_data, aes(x=y_obs, y=S_hat, group=cond)) +
-    geom_point(aes(colour = cond, shape = cond, alpha = cond), size = 2, stroke = 1.5) +
-    scale_colour_manual(values = c("#72b000", "#666666")) +
-    scale_shape_manual(values = c(4, 1)) +
-    scale_alpha_manual(values = c(0.4, 0.3)) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 1, colour = "black") +
-    labs(x = "Observed DBH cm", y="Estimated DBH cm", title = "Size estimation") +
-    theme_classic() +
-    theme(legend.title = element_blank(),
-          legend.position = "inside",
-          legend.position.inside = c(0.2,0.9)) +
-    theme(text = element_text(size = 10))
-
-  size_resid_plot <- ggplot(data=size_scatter_data, aes(x=S_hat, y=size_resid, group=cond)) +
-    geom_point(aes(colour = cond, shape = cond, alpha = cond), size = 2, stroke = 1.5) +
-    scale_colour_manual(values = c("#72b000", "#666666")) +
-    scale_shape_manual(values = c(4, 1)) +
-    scale_alpha_manual(values = c(0.4, 0.3)) +
-    geom_hline(yintercept = 0, linetype = "dashed", alpha = 1, colour = "black") +
-    labs(x = "Estimated DBH cm", y="Residual", title = "Size estimation") +
-    theme_classic() +
-    theme(legend.title = element_blank(),
-          legend.position = "inside",
-          legend.position.inside = c(0.2,0.9)) +
-    theme(text = element_text(size = 10))
-
-  growth_scatter_plot <- ggplot(data=growth_scatter_data, aes(x=G_obs, y=G_hat, group=cond)) +
-    geom_point(aes(colour = cond, shape = cond, alpha = cond), size = 2, stroke = 1.5) +
-    scale_colour_manual(values = c("#72b000", "#666666")) +
-    scale_shape_manual(values = c(4, 1)) +
-    scale_alpha_manual(values = c(0.4, 0.2)) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 1, colour = "black") +
-    labs(x = "Observed DBH increment cm", y="Estimated DBH increment cm",
-         title = "Growth estimation") +
-    theme_classic() +
-    theme(legend.title = element_blank(),
-          legend.position = "inside",
-          legend.position.inside = c(0.2,0.9)) +
-    theme(text = element_text(size = 10))
-
-  growth_resid_plot <- ggplot(data=growth_scatter_data, aes(x=G_hat, y=growth_resid, group=cond)) +
-    geom_point(aes(colour = cond, shape = cond, alpha = cond), size = 2, stroke = 1.5) +
-    scale_colour_manual(values = c("#72b000", "#666666")) +
-    scale_shape_manual(values = c(4, 1)) +
-    scale_alpha_manual(values = c(0.4, 0.3)) +
-    geom_hline(yintercept = 0, linetype = "dashed", alpha = 1, colour = "black") +
-    labs(x = "Estimated DBH increment cm", y="Residual", title = "Growth estimation") +
-    theme_classic() +
-    theme(legend.title = element_blank(),
-          legend.position = "inside",
-          legend.position.inside = c(0.8,0.9)) +
-    theme(text = element_text(size = 10))
-
-  h_sizes_plot <- h_sizes_plot +
-    theme(legend.title = element_blank(),
-          legend.position = "inside",
-          legend.position.inside = c(0.3,0.9)) +
-    theme(text = element_text(size = 10))
-  sp_sizes_plot <- sp_sizes_plot +
-    theme(legend.title = element_blank(),
-          legend.position = "inside",
-          legend.position.inside = c(0.3,0.9)) +
-    theme(text = element_text(size = 10))
+                                        y_hat = sp_level_measurement_data$y_hat_species,
+                                        cond="Species-level fit"))
 
   #Separate size scatter plots for model fits
   ylims <- c(
-    min(c(sp_level_measurement_data$S_hat, sp_level_measurement_data$S_hat_species)),
-    max(c(sp_level_measurement_data$S_hat, sp_level_measurement_data$S_hat_species))
+    min(size_scatter_data$y_hat),
+    max(size_scatter_data$y_hat)
   )
-  h_size_scatter <- ggplot(data=sp_level_measurement_data, aes(x=y_obs, y=S_hat)) +
+  h_size_scatter <- ggplot(data=measurement_data, aes(x=y_obs, y=y_hat)) +
     geom_point(colour = "#72b000", shape = 19, alpha = 0.4, size = 2) +
     geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 1, colour = "black") +
     labs(y = "Estimated DBH cm", x="Observed DBH cm", title = "Hierarchical fit size estimation") +
@@ -1221,7 +1071,7 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
     ylim(ylims[1], ylims[2]) +
     theme(text = element_text(size = 10))
 
-  sp_size_scatter <- ggplot(data=sp_level_measurement_data, aes(x=y_obs, y=S_hat_species)) +
+  sp_size_scatter <- ggplot(data=sp_level_measurement_data, aes(x=y_obs, y=y_hat_species)) +
     geom_point(colour = "#72b000", shape = 19, alpha = 0.4, size = 2) +
     geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 1, colour = "black") +
     labs(y = "Estimated DBH cm", x="Observed DBH cm", title = "Species average fit size estimation") +
@@ -1233,79 +1083,25 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
                           sp_sizes_plot,
                           h_g_plot,
                           sp_g_plot,
-                          size_scatter_plot,
-                          growth_scatter_plot,
+                          h_size_scatter,
+                          sp_size_scatter,
                           nrow = 3,
                           align = "hv",
                           axis = "b",
                           rel_heights = c(0.4, 0.3, 0.3),
                           labels=c("(a)", "(b)", "(c)", "(d)", "(e)", "(f)"))
 
-  fig_1_grid_resid <- plot_grid(h_sizes_plot,
-                                sp_sizes_plot,
-                                h_g_plot,
-                                sp_g_plot,
-                                size_resid_plot,
-                                growth_resid_plot,
-                                nrow = 3,
-                                align = "hv",
-                                axis = "b",
-                                rel_heights = c(0.4, 0.3, 0.3),
-                                labels=c("(a)", "(b)", "(c)", "(d)", "(e)", "(f)"))
+  file_name <- "output/figures/Fig1Grid_SizeSep.svg"
+  ggsave(file_name, plot=plot, width=700, height=1150, units="px", device = "svg")
 }
 
 
 #-----------------------------------------------------------------------------#
-# Numerical integration
-#Runge-Kutta 4th order
-rk4_est <- function(S_0, growth, pars, step_size, N_step){
-  runge_kutta_int <- c(S_0)
-  for(i in 2:N_step){
-    k1 <- growth(runge_kutta_int[i-1], pars)
-    k2 <- growth((runge_kutta_int[i-1] + step_size*k1/2), pars)
-    k3 <- growth((runge_kutta_int[i-1] + step_size*k2/2), pars)
-    k4 <- growth((runge_kutta_int[i-1] + step_size*k3), pars)
-
-    runge_kutta_int[i] <- runge_kutta_int[i-1] + (1/6)*(k1 + 2*k2 + 2*k3 + k4)*step_size
-  }
-  return(runge_kutta_int)
-}
-
-#RK4 algorithm with substeps
-rk4_step <- function(y,  pars, interval, growth_function){
-  k1 <- growth_function(y, pars)
-  k2 <- growth_function(y+interval*k1/2.0, pars)
-  k3 <- growth_function(y+interval*k2/2.0, pars)
-  k4 <- growth_function(y+interval*k3, pars)
-
-  y_hat <- y + (1.0/6.0) * (k1 + 2.0*k2 + 2.0*k3 + k4) * interval
-
-  return(y_hat)
-}
-
-rk4 <- function(y, pars, interval, step_size, growth_function){
-  duration <-  0
-  y_hat <- y
-
-  while(duration < interval){
-    #Determine the relevant step size
-    step_size_temp <- min(c(step_size, interval-duration))
-
-    #Get next size estimate
-    y_hat <- rk4_step(y_hat, pars, step_size_temp, growth_function)
-
-    #Increment observed duration
-    duration <- duration + step_size_temp
-  }
-
-  return(y_hat)
-}
-
-#RK45 setup
+# Numerical integration RK45 setup
 #Create DE function for deSolve
-Canham_DE <- function(Time, State, Pars) { #Pars: g_max, s_max, k
+Canham_DE <- function(Time, State, Pars) { #Pars: g_max, y_max, k
   with(as.list(c(State, Pars)), {
-    dY <- g_max * exp(-0.5 * (log(Y / s_max) / k)^2)
+    dY <- g_max * exp(-0.5 * (log(Y / y_max) / k)^2)
 
     return(list(c(dY)))
   })
