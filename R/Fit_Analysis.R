@@ -94,10 +94,12 @@ run_analysis <- function(sp_codes,
               )#Excluding two extreme individuals
 
   canham_amenability(
-    chosen_sp_codes = c("gar2in", "jac1co", "simaam", "tachve"),
+    chosen_sp_codes = c("faraoc", "gar2in", "hirttr",
+                        "jac1co", "simaam", "tachve"),
     full_data,
     exclude_vec = c(21260, 83062),
-    colours = c("#72b000", "#00bf7d", "#cf78ff", "#f066ea")
+    colours = c("#afa100", "#72b000", "#00b81f",
+                "#00bf7d", "#cf78ff", "#f066ea")
   )
 }
 
@@ -1120,15 +1122,18 @@ canham_amenability <- function(chosen_sp_codes,
   for(i in 1:length(chosen_sp_codes)){
     ind_data <- full_data$ind_data_full %>%
       filter(sp_code == chosen_sp_codes[i],
-             !BCI_ind_id %in% exclude_vec)
+             !BCI_ind_id %in% exclude_vec) %>%
+      mutate(size_rank = rank(S_final))
 
-    focus_ind <- ind_data[which(ind_data$S_final == max(ind_data$S_final)),]
+    #Focus the three biggest individuals
+    focus_ind <- ind_data %>%
+      filter(size_rank %in% (nrow(ind_data)-3):nrow(ind_data))
 
     post_pars <- data.frame(g_max = ind_data$ind_max_growth,
                             s_max = ind_data$ind_size_at_max_growth,
                             k = ind_data$ind_k)
-    args_list <- list(pars=as.numeric(focus_ind[1,3:5]))
 
+    #Produce plot of all growth functions
     plot <- ggplot_sample_growth_trajectories(post_pars,
                                               growth_function = hmde_canham_de,
                                               max_growth_size = max(ind_data$S_final),
@@ -1136,22 +1141,32 @@ canham_amenability <- function(chosen_sp_codes,
                                               S_0 = ind_data$S_initial,
                                               S_final = ind_data$S_final,
                                               colour = colours[i],
-                                              species = ind_data$species[1]) +
-      geom_function(fun=hmde_canham_de, args=args_list, alpha=1,
-                    color="#333333", linewidth=1, xlim=c(focus_ind$S_initial[1],
-                                                         focus_ind$S_final[1])) +
-      geom_function(fun=hmde_canham_de, args=args_list, alpha=1, linetype = "dotdash",
-                    color="#333333", linewidth=1, xlim=c(1, focus_ind$S_initial[1]))
+                                              species = ind_data$species[1])
+
+    #Overlay largest individuals
+    for(j in 1:3){
+      args_list <- list(pars=as.numeric(focus_ind[j,3:5]))
+      plot <- plot +
+        geom_function(fun=hmde_canham_de, args=args_list, alpha=1,
+                      color="#111111", linewidth=1, xlim=c(focus_ind$S_initial[j],
+                                                             focus_ind$S_final[j])) +
+        geom_function(fun=hmde_canham_de, args=args_list, alpha=1, linetype = "longdash",
+                      color="#444444", linewidth=0.5, xlim=c(1, focus_ind$S_initial[j]))
+    }
+
 
     plot_list[[i]] <- plot
   }
 
   amenability_plot <- plot_grid(plotlist = plot_list,
-            nrow = 2,
+            nrow = 3,
             align = "hv",
-            labels = c("(a)", "(b)", "(c)", "(d)"))
+            byrow = FALSE,
+            labels = c("(a)", "(b)",
+                       "(c)", "(d)",
+                       "(e)", "(f)"))
 
   file_name <- "output/figures/CanhamAmenability.svg"
-  ggsave(file_name, plot=amenability_plot, width=900, height=700,
+  ggsave(file_name, plot=amenability_plot, width=900, height=1050,
          dpi = 96, units="px", device = "svg")
 }
