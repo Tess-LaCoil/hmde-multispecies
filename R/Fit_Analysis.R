@@ -92,6 +92,13 @@ run_analysis <- function(sp_codes,
               full_data,
               exclude_vec = c(21260, 83062)
               )#Excluding two extreme individuals
+
+  canham_amenability(
+    chosen_sp_codes = c("gar2in", "jac1co", "simaam", "tachve"),
+    full_data,
+    exclude_vec = c(21260, 83062),
+    colours = c("#72b000", "#00bf7d", "#cf78ff", "#f066ea")
+  )
 }
 
 #-----------------------------------------------------------------------------#
@@ -1093,8 +1100,6 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
   ggsave(file_name, plot=plot, width=700, height=1150, units="px", device = "svg")
 }
 
-
-#-----------------------------------------------------------------------------#
 # Numerical integration RK45 setup
 #Create DE function for deSolve
 Canham_DE <- function(Time, State, Pars) { #Pars: g_max, y_max, k
@@ -1103,4 +1108,50 @@ Canham_DE <- function(Time, State, Pars) { #Pars: g_max, y_max, k
 
     return(list(c(dY)))
   })
+}
+
+#-----------------------------------------------------------------------------#
+#Canham amenability comparison
+canham_amenability <- function(chosen_sp_codes,
+                               full_data,
+                               exclude_vec,
+                               colours){
+  plot_list <- list()
+  for(i in 1:length(chosen_sp_codes)){
+    ind_data <- full_data$ind_data_full %>%
+      filter(sp_code == chosen_sp_codes[i],
+             !BCI_ind_id %in% exclude_vec)
+
+    focus_ind <- ind_data[which(ind_data$S_final == max(ind_data$S_final)),]
+
+    post_pars <- data.frame(g_max = ind_data$ind_max_growth,
+                            s_max = ind_data$ind_size_at_max_growth,
+                            k = ind_data$ind_k)
+    args_list <- list(pars=as.numeric(focus_ind[1,3:5]))
+
+    plot <- ggplot_sample_growth_trajectories(post_pars,
+                                              growth_function = hmde_canham_de,
+                                              max_growth_size = max(ind_data$S_final),
+                                              min_growth_size = 1,
+                                              S_0 = ind_data$S_initial,
+                                              S_final = ind_data$S_final,
+                                              colour = colours[i],
+                                              species = ind_data$species[1]) +
+      geom_function(fun=hmde_canham_de, args=args_list, alpha=1,
+                    color="#333333", linewidth=1, xlim=c(focus_ind$S_initial[1],
+                                                         focus_ind$S_final[1])) +
+      geom_function(fun=hmde_canham_de, args=args_list, alpha=1, linetype = "dotdash",
+                    color="#333333", linewidth=1, xlim=c(1, focus_ind$S_initial[1]))
+
+    plot_list[[i]] <- plot
+  }
+
+  amenability_plot <- plot_grid(plotlist = plot_list,
+            nrow = 2,
+            align = "hv",
+            labels = c("(a)", "(b)", "(c)", "(d)"))
+
+  file_name <- "output/figures/CanhamAmenability.svg"
+  ggsave(file_name, plot=amenability_plot, width=900, height=700,
+         dpi = 96, units="px", device = "svg")
 }
