@@ -35,7 +35,18 @@ run_analysis <- function(sp_codes,
   trait_analysis(species_summary_table)
 
   #Plots plots plots
-  #fig_1_plots(full_data, sp_code = "gar2in")
+  plot_obs_est_size_scatter(full_data,
+                            col_vec = c("#f8766d", "#e7861b", "#cf9400",
+                                        "#afa100", "#00b81f", "#00bf7d",
+                                        "#00c1aa", "#00bdd0", "#00b4ef",
+                                        "#00a5ff", "#77a5ff", "#9590ff",
+                                        "#cf78ff", "#f066ea", "#ff62bc",
+                                        "#fc717f"),
+                            sp_codes = c("alsebl", "beilpe", "cordbi", "faraoc",
+                                         "hirttr", "jac1co", "pri2co", "protpa",
+                                         "protte", "quaras", "swars1", "swars2",
+                                         "simaam", "tachve", "tet2pa", "tri2tu"))
+
   plot_3d_scatter(ind_data = full_data$ind_data_full, col_vec)
 
   plot_ridges(ind_par_data = full_data$ind_data_full,
@@ -90,6 +101,7 @@ run_analysis <- function(sp_codes,
               colour = "#72b000",
               focus_ind_vec = c(3, 12, 72, 126, 160),
               full_data,
+              species_summary_table,
               exclude_vec = c(21260, 83062)
               )#Excluding two extreme individuals
 
@@ -497,6 +509,53 @@ pairs_scatter_spearmans_plot <- function(dataset,
     geom_point(colour = "green4", size = 1) +
     labs(x = x_lab, y = y_lab) +
     annotate("text", x=x_pos, y=y_pos, label= plot_label) +
+    theme_classic()
+
+  return(plot)
+}
+
+#-----------------------------------------------------------------------------#
+#Scatter plots of estimated and observed sizes for each species
+plot_obs_est_size_scatter <- function(full_data, col_vec, sp_codes){
+  plot_list <- list()
+  for(i in 1:length(sp_codes)){
+    plot_data <- full_data$measurement_data_full %>%
+      filter(sp_code == sp_codes[i])
+
+    plot_list[[i]] <- ggplot_obs_est_scatter(plot_data,
+                                             colour = col_vec[i],
+                                             title = plot_data$species[1])
+  }
+
+  obs_est_scatter <- plot_grid(
+    plotlist = plot_list,
+    nrow = 4,
+    align = "hv"
+  )
+
+  file_name <- "output/figures/ObsEstScatter.svg"
+  ggsave(file_name, plot=obs_est_scatter, width=1200, height=1200,
+         units="px", device = "svg", dpi = 96)
+}
+
+ggplot_obs_est_scatter <- function(plot_data, colour, title){
+  r_sq_est <- cor(plot_data$y_obs,
+                  plot_data$y_hat)^2
+  r_sq <- paste0("R^2 = ",
+                 signif(r_sq_est,
+                        digits = 3))
+
+  plot <-
+    ggplot(data=plot_data, aes(x=y_obs, y=y_hat)) +
+    geom_point(colour = colour, shape = 19, alpha = 0.4, size = 2) +
+    geom_abline(slope = 1, intercept = 0, linetype = "dashed",
+                alpha = 1, colour = "black") +
+    annotate("text",
+             x = 0.3*max(plot_data$y_obs),
+             y = 0.9*max(plot_data$y_hat),
+             label = r_sq) +
+    labs(y = "Estimated DBH cm",
+         x="Observed DBH cm", title = title) +
     theme_classic()
 
   return(plot)
@@ -970,7 +1029,7 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
         func = Canham_DE,
         parms = pars_combo,
         method = "ode45")[,2]
-    temp$y_hat_species <- size_est
+    temp$y_hat <- size_est
 
     sp_level_measurement_data <- rbind(sp_level_measurement_data, temp)
   }
@@ -1046,7 +1105,7 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
 
   #Extract y limits from h_g_plot
   ylims <- c(0, layer_scales(h_g_plot)$y$range$range[2])
-  args_list <- list(pars=function_pars)
+  args_list <- list(pars=as.numeric(species_summary_vec[1,c(22, 23, 21)]))
   sp_g_plot <- ggplot() +
     geom_function(fun=hmde_canham_de, args=args_list, alpha=1,
                   color="#333333", linewidth=1, xlim=c(1,
@@ -1070,19 +1129,15 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
     min(size_scatter_data$y_hat),
     max(size_scatter_data$y_hat)
   )
-  h_size_scatter <- ggplot(data=measurement_data, aes(x=y_obs, y=y_hat)) +
-    geom_point(colour = "#72b000", shape = 19, alpha = 0.4, size = 2) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 1, colour = "black") +
-    labs(y = "Estimated DBH cm", x="Observed DBH cm", title = "Hierarchical fit size estimation") +
-    theme_classic() +
+  h_size_scatter <- ggplot_obs_est_scatter(plot_data = measurement_data,
+                                           colour = "#72b000",
+                                           title = "Hierarchical fit size estimation") +
     ylim(ylims[1], ylims[2]) +
     theme(text = element_text(size = 10))
 
-  sp_size_scatter <- ggplot(data=sp_level_measurement_data, aes(x=y_obs, y=y_hat_species)) +
-    geom_point(colour = "#72b000", shape = 19, alpha = 0.4, size = 2) +
-    geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 1, colour = "black") +
-    labs(y = "Estimated DBH cm", x="Observed DBH cm", title = "Species average fit size estimation") +
-    theme_classic() +
+  sp_size_scatter <- ggplot_obs_est_scatter(plot_data = sp_level_measurement_data,
+                                            colour = "#72b000",
+                                            title = "Species average fit size estimation") +
     ylim(ylims[1], ylims[2]) +
     theme(text = element_text(size = 10))
 
@@ -1099,7 +1154,8 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
                           labels=c("(a)", "(b)", "(c)", "(d)", "(e)", "(f)"))
 
   file_name <- "output/figures/Fig1Grid_SizeSep.svg"
-  ggsave(file_name, plot=plot, width=700, height=1150, units="px", device = "svg")
+  ggsave(file_name, plot=fig_1_grid, width=700, height=1150,
+         units="px", device = "svg", dpi = 96)
 }
 
 # Numerical integration RK45 setup
