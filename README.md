@@ -32,7 +32,7 @@ sample without replacement of size 300.
 The table below gives the species names, species code from the BCI data, sample size, 
 and runtime for the hierarchical model fit to that species.
 
-|Species | Species code | Sample size | Walltime|
+|Species | Species code | Sample size | Walltime (hrs)|
 | :---------- | :----------: | :------: | :------: |
 | *Alseis blackiana* | alsebl | 300 | 153 |
 | *Beilschmiedia tovarensis* | beilpe | 300 | 147 |
