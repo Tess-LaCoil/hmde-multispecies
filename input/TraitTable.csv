@@ -1,18 +1,18 @@
-species,WD,Hmax,mean_b_coeff
-Alseis blackiana,0.591,28.6,0.566
-Beilschmiedia tovarensis,0.528,34.2,0.3335
-Cordia bicolor,0.381,24.8,0.95
-Faramea occidentalis,0.681,15.7,0.128
-Garcinia recondita,0.703,15.9,0.0495
-Hirtella triandra,0.63,22.7,0.264
-Jacaranda copaia,0.374,31.8,0.206
-Prioria copaifera,0.403,35.5,0.288
-Protium panamense,0.601,19.2,0.535
-Protium tenuifolium,0.596,20.5,0.541
-Quararibea asterolepis,0.559,33.5,0.198
-Swartzia simplex,0.79,17.1,0.122
-Swartzia simplex2,0.784,14.2,
-Simarouba amara,0.396,30.1,0.692
-Tachigali panamensis,0.575,32.6,0.284
-Protium stevensonii,0.656,31.3,0.341
-Trichilia tuberculata,0.666,29.3,0.158
+"","species","WD","Hmax","b1","b2","mean_b_coeff"
+"1","Alseis blackiana",0.591,28.6,0.532,0.601,0.5665
+"2","Beilschmiedia tovarensis",0.528,34.2,0.217,0.179,0.198
+"3","Cordia bicolor",0.381,24.8,0.861,1.039,0.95
+"4","Faramea occidentalis",0.681,15.7,0.177,0.079,0.128
+"5","Garcinia recondita",0.703,15.9,0.053,0.046,0.0495
+"6","Hirtella triandra",0.63,22.7,0.324,0.203,0.2635
+"7","Jacaranda copaia",0.374,31.8,0.799,0.897,0.848
+"8","Prioria copaifera",0.403,35.5,0.388,0.188,0.288
+"9","Protium panamense",0.601,19.2,0.62,0.45,0.535
+"10","Protium tenuifolium",0.596,20.5,0.59,0.492,0.541
+"11","Quararibea asterolepis",0.559,33.5,0.193,0.202,0.1975
+"12","Swartzia simplex",0.79,17.1,0.138,0.107,0.1225
+"13","Swartzia simplex2",0.784,14.2,NA,NA,NA
+"14","Simarouba amara",0.396,30.1,0.679,0.705,0.692
+"15","Tachigali panamensis",0.575,32.6,0.368,0.201,0.2845
+"16","Protium stevensonii",0.656,31.3,0.402,0.28,0.341
+"17","Trichilia tuberculata",0.666,29.3,0.144,0.173,0.1585

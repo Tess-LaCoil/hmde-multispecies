@@ -384,7 +384,8 @@ trait_analysis <- function(species_summary_table){
            pop_log_size_at_max_growth_sd,
            sd_ind_log_size_at_max_growth,
            mean_b_coeff
-    )
+    ) %>%
+    na.omit() #No b value for S. simplex 2
 
   #Plots and test output
   growth_scatterplot_set <- trait_analysis_stats(trait_data = growth_comp_data,
