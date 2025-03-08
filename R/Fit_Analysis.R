@@ -284,17 +284,21 @@ build_sp_tables <- function(full_data){
               median_ind_size_at_max_growth = median(ind_size_at_max_growth),
               median_ind_k = median(ind_k),
               gmax_95 = as.numeric(quantile(ind_max_growth, 0.95)),
+              k_95 = as.numeric(quantile(ind_k, 0.95)),
               max_est_size = max(S_final),
-              sd_ind_log_size_at_max_growth = sd(log(ind_size_at_max_growth)))
+              sd_ind_log_size_at_max_growth = sd(log(ind_size_at_max_growth)),
+              sd_ind_log_k = sd(log(ind_k)))
 
   obs_growth_data <- full_data$measurement_data_full %>%
     group_by(BCI_ind_id) %>%
-    mutate(interval = lead(time) - time,
-           delta_obs = (lead(y_obs) - y_obs)/interval) %>%
+    mutate(interval = time - lag(time),
+           delta_obs = (y_obs - lag(y_obs))/interval) %>%
     ungroup() %>%
     filter(!is.na(delta_obs)) %>%
     group_by(sp_code) %>%
-    summarise(gobs_95 = as.numeric(quantile(delta_obs, 0.95)))
+    summarise(gobs_95 = as.numeric(quantile(delta_obs, 0.95)),
+              Sobs_95 = as.numeric(quantile(y_obs, 0.95))
+    )
 
   #Get species-level model data
   sp_model_wide <- full_data$sp_model_data_full %>%
@@ -316,7 +320,13 @@ build_sp_tables <- function(full_data){
     left_join(obs_growth_data, by = "sp_code") %>%
     left_join(species_walltime, by = "sp_code") %>%
     left_join(sp_model_wide, by = "sp_code") %>%
-    left_join(trait_table, by = "species")
+    left_join(trait_table, by = "species") %>%
+    mutate(
+      log_pop_model_g_max = log(pop_level_model_max_growth),
+      log_ind_g_max_95 = log(gmax_95),
+      log_gobs_95 = log(gobs_95),
+      log_pop_mean_max_growth = log(pop_max_growth_mean)
+    )
 
   table_1 <- species_summary_table %>%
     select(species, sp_code, samp, walltime)
@@ -331,11 +341,35 @@ build_sp_tables <- function(full_data){
 
   table_3 <- species_summary_table %>%
     select(species, pop_max_growth_mean, gmax_95, gobs_95,
-           pop_log_size_at_max_growth_sd, sd_ind_log_size_at_max_growth,
-           WD, Hmax, mean_b_coeff
+           log_pop_model_g_max,
+           log_ind_g_max_95,
+           log_gobs_95,
+           log_pop_mean_max_growth,
+           WD, Hmax
            )
-  table_3[,2:9] <- signif(table_3[,2:9], digits = 4)
-  write.csv(table_3, "output/data/Paper_Table_3.csv", row.names = FALSE)
+  table_3[,2:10] <- signif(table_3[,2:10], digits = 4)
+  write.csv(table_3, "output/data/GrowthTrait_Table.csv", row.names = FALSE)
+
+  table_4 <- species_summary_table %>%
+    select(
+      species,
+      pop_size_at_max_growth_mean,
+      median_ind_size_at_max_growth,
+      pop_level_model_size_at_max_growth,
+      Sobs_95, Hmax
+    )
+  write.csv(table_4, "output/data/SmaxTrait_Table.csv", row.names = FALSE)
+
+  table_5 <- species_summary_table %>%
+    select(
+      species,
+      pop_level_model_k,
+      median_ind_k,
+      pop_k_mean,
+      WD
+    )
+  table_3[,2:5] <- signif(table_3[,2:5], digits = 4)
+  write.csv(table_5, "output/data/kTrait_Table.csv", row.names = FALSE)
 
   return(species_summary_table)
 }
@@ -390,12 +424,17 @@ trait_analysis <- function(species_summary_table){
   #Plots and test output
   growth_scatterplot_set <- trait_analysis_stats(trait_data = growth_comp_data,
                        trait_name = c("WD", "Hmax"),
-                       comp_pair_names = c("pop_max_growth_mean",
-                                           "pop_level_model_max_growth",
-                                           "gmax_95", "gobs_95"),
+                       comp_pair_names = c("pop_level_model_max_growth",
+                                           "gobs_95",
+                                           "pop_max_growth_mean",
+                                           "gmax_95"
+                                           ),
                        plot_x_labs = c("Wood density", "Max height"),
-                       plot_y_labs = c("Sp. mean g_max", "Sp. level g_max",
-                                       "Ind. 95% g_max", "Obs. 95% growth"))
+                       plot_y_labs = c("Sp. avg. model g_max",
+                                       "Obs. 95% growth",
+                                       "Sp. mean g_max",
+                                       "Ind. 95% g_max"
+                                       ))
   growth_grid <- plot_grid(plotlist = growth_scatterplot_set,
             ncol = 2,
             byrow = FALSE,
@@ -443,6 +482,95 @@ trait_analysis <- function(species_summary_table){
   trait_corr_table_rounded <- trait_corr_table
   trait_corr_table_rounded[,2:3] <- signif(trait_corr_table[,2:3], digits = 4)
   write.csv(trait_corr_table_rounded, "output/data/trait_corr_table_rounded.csv")
+
+  #Herault comparisons
+  #Table of linear cors for g_max
+  herault_growth_pars <- c(
+    "log_pop_model_g_max",
+    "log_ind_g_max_95",
+    "log_gobs_95"
+  )
+  traits <- c("WD", "Hmax")
+
+  h_max_cor <- species_summary_table %>%
+    summarise(
+      trait = "Hmax",
+      r_log_g_max_95 = cor.test(Hmax,
+                                log_ind_g_max_95,
+                                method = "pearson")$estimate,
+      r_log_g_max_95_p = cor.test(Hmax,
+                                log_ind_g_max_95,
+                                method = "pearson")$p.value,
+      r_log_gobs_95 = cor.test(Hmax,
+                               log_gobs_95,
+                               method = "pearson")$estimate,
+      r_log_gobs_95_p = cor.test(Hmax,
+                               log_gobs_95,
+                               method = "pearson")$p.value,
+      r_log_pop_model_g_max = cor.test(Hmax,
+                                log_pop_model_g_max,
+                                method = "pearson")$estimate,
+      r_log_pop_model_g_max_p = cor.test(Hmax,
+                                       log_pop_model_g_max,
+                                       method = "pearson")$p.value
+    )
+  wd_cor <- species_summary_table %>%
+    summarise(
+      trait = "WD",
+      r_log_g_max_95 = cor.test(WD,
+                                log_ind_g_max_95,
+                                method = "pearson")$estimate,
+      r_log_g_max_95_p = cor.test(WD,
+                                  log_ind_g_max_95,
+                                  method = "pearson")$p.value,
+      r_log_gobs_95 = cor.test(WD,
+                               log_gobs_95,
+                               method = "pearson")$estimate,
+      r_log_gobs_95_p = cor.test(WD,
+                                 log_gobs_95,
+                                 method = "pearson")$p.value,
+      r_log_pop_model_g_max = cor.test(WD,
+                                       log_pop_model_g_max,
+                                       method = "pearson")$estimate,
+      r_log_pop_model_g_max_p = cor.test(WD,
+                                         log_pop_model_g_max,
+                                         method = "pearson")$p.value
+    )
+
+  herault_growth_corr_table <- rbind(h_max_cor, wd_cor)
+
+  herault_growth_corr_table_rounded <- herault_growth_corr_table
+  herault_growth_corr_table_rounded[,2:7] <- signif(herault_growth_corr_table[,2:7], digits = 4)
+  write.csv(herault_growth_corr_table_rounded, "output/data/herault_growth_corr_table_rounded.csv")
+
+  #Herault k comparisons
+  k_pars <- c("pop_k_mean", "sd_ind_log_k,", "pop_level_model_k")
+  wd_cor <- species_summary_table %>%
+    summarise(
+      trait = "WD",
+      r_pop_k_mean = cor.test(WD,
+                              pop_k_mean,
+                                method = "pearson")$estimate,
+      r_pop_k_mean_p = cor.test(WD,
+                                  pop_k_mean,
+                                  method = "pearson")$p.value,
+      r_sd_ind_log_k = cor.test(WD,
+                                sd_ind_log_k,
+                                method = "pearson")$estimate,
+      r_sd_ind_log_k_p = cor.test(WD,
+                                  sd_ind_log_k,
+                                  method = "pearson")$p.value,
+      r_pop_level_model_k = cor.test(WD,
+                               pop_level_model_k,
+                               method = "pearson")$estimate,
+      r_pop_level_model_k_p = cor.test(WD,
+                                 pop_level_model_k,
+                                 method = "pearson")$p.value,
+    )
+  herault_k_cor_table_rounded <- wd_cor
+  herault_k_cor_table_rounded[,2:7] <- signif(wd_cor[,2:7], digits = 3)
+  write.csv(herault_k_cor_table_rounded, "output/data/herault_k_cor_table_rounded.csv")
+
 }
 
 trait_analysis_stats <- function(trait_data,
