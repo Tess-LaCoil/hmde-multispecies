@@ -1,18 +1,18 @@
-"species","pop_max_growth_mean","gmax_95","gobs_95","pop_log_size_at_max_growth_sd","sd_ind_log_size_at_max_growth","WD","Hmax","mean_b_coeff"
-"Alseis blackiana",0.2789,0.9164,0.4516,0.8665,0.5071,0.591,28.6,0.5665
-"Beilschmiedia tovarensis",0.1376,0.9066,0.3509,1.134,0.6202,0.528,34.2,0.198
-"Cordia bicolor",0.9144,2.246,1.163,0.594,0.4431,0.381,24.8,0.95
-"Faramea occidentalis",0.1624,0.344,0.2765,0.6381,0.4345,0.681,15.7,0.128
-"Garcinia recondita",0.07888,0.2778,0.189,0.55,0.2781,0.703,15.9,0.0495
-"Hirtella triandra",0.1787,0.5699,0.4409,0.5624,0.258,0.63,22.7,0.2635
-"Jacaranda copaia",1.265,2.591,1.865,0.522,0.4084,0.374,31.8,0.848
-"Prioria copaifera",0.5058,1.616,1.186,0.6347,0.3034,0.403,35.5,0.288
-"Protium panamense",0.1221,0.5328,0.2212,0.5522,0.3696,0.601,19.2,0.535
-"Protium tenuifolium",0.2822,0.8955,0.5218,0.7935,0.4976,0.596,20.5,0.541
-"Quararibea asterolepis",0.3302,1.086,0.6373,0.4621,0.2299,0.559,33.5,0.1975
-"Swartzia simplex",0.09105,0.4509,0.2053,0.773,0.4215,0.79,17.1,0.1225
-"Swartzia simplex2",0.03624,0.1083,0.1338,0.8408,0.3055,0.784,14.2,NA
-"Simarouba amara",0.762,2.01,1.348,0.8525,0.6039,0.396,30.1,0.692
-"Tachigali panamensis",0.1983,0.9451,0.4185,0.8716,0.5936,0.575,32.6,0.2845
-"Protium stevensonii",0.1227,0.5893,0.3502,0.8149,0.4064,0.656,31.3,0.341
-"Trichilia tuberculata",0.1467,0.7387,0.4123,0.9552,0.5176,0.666,29.3,0.1585
+"species","median_ind_size_at_max_growth","pop_size_at_max_growth_mean","pop_level_model_size_at_max_growth","max_est_size","Sobs_max"
+"Alseis blackiana",11,9.6,1301.3,41.3,41.5
+"Beilschmiedia tovarensis",4.6,5,2175.3,48.3,47.9
+"Cordia bicolor",10.6,10.3,12.7,50.1,49.1
+"Faramea occidentalis",4.7,4.7,26.5,18.8,18.7
+"Garcinia recondita",4.3,4.4,12.8,24.4,24.2
+"Hirtella triandra",8.9,8.7,15.2,34.5,33.9
+"Jacaranda copaia",26.8,24.8,33.7,89.7,89.5
+"Prioria copaifera",41.1,39.3,48.1,111.8,112
+"Protium panamense",2.9,3,90.7,17.2,17.5
+"Protium tenuifolium",8.6,8.2,18.3,42.7,42.9
+"Quararibea asterolepis",15.9,16.1,26,42.1,41.9
+"Swartzia simplex",4.2,4.6,252.3,36.5,36.5
+"Swartzia simplex2",3.3,3.4,44846,22.9,23
+"Simarouba amara",19.6,17.6,78,63.9,64.3
+"Tachigali panamensis",4.2,4.2,81.1,24.5,24.1
+"Protium stevensonii",7,7.2,184.1,44.3,44
+"Trichilia tuberculata",7.3,7.9,20018.1,46.6,46.6
