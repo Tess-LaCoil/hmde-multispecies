@@ -368,6 +368,32 @@ build_sp_tables <- function(full_data){
   table_4_rounded[,2:11] <- signif(table_4_rounded[,2:11], digits = 4)
   write.csv(table_4_rounded, "output/data/Trait_Table.csv", row.names = FALSE)
 
+  resid_stats <- full_data$measurement_data_full %>%
+    mutate(resid = y_obs - y_hat) %>%
+    group_by(species) %>%
+    summarise(mean = mean(resid),
+              sd = sd(resid),
+              se = sd(resid)/sqrt(length(ind_id)),
+              N = length(ind_id),
+              min = min(resid),
+              max = max(resid),
+              median = median(resid)
+    )
+  resid_stats_summary <- full_data$measurement_data_full %>%
+    mutate(resid = y_obs - y_hat) %>%
+    summarise(species = "Overall",
+              mean = mean(resid),
+              sd = sd(resid),
+              se = sd(resid)/sqrt(length(ind_id)),
+              N = length(ind_id),
+              min = min(resid),
+              max = max(resid),
+              median = median(resid))
+  resid_stats <- rbind(resid_stats, resid_stats_summary)
+  resid_stats_rounded <- resid_stats
+  resid_stats_rounded[,2:8] <- signif(resid_stats[,2:8], digits = 3)
+  write.csv(resid_stats_rounded, "output/data/Resid_Table.csv", row.names = FALSE)
+
   return(species_summary_table)
 }
 
