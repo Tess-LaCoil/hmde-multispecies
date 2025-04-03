@@ -19,6 +19,14 @@ scatterplot_list <- list(
   )
 )
 
+#Calculate R^2
+rmse_calc <- function(obs, est){
+  resid <- obs - est
+  return(
+    sqrt(sum(resid^2)/length(resid))
+    )
+}
+
 #Control function
 run_analysis <- function(sp_codes,
                          col_vec,
@@ -161,6 +169,14 @@ construct_full_data_tibbles <- function(sp_codes,
     CI_upper=c()
   )
 
+  model_fit_data <- tibble(
+    sp_code=c(),
+    rmse_hierarchical=c(),
+    r_sq_hierarchical=c(),
+    rmse_pooled=c(),
+    r_sq_pooled=c()
+  )
+
   for(i in 1:length(sp_codes)){
     ests <- readRDS(paste0(est_file_path, sp_codes[i],"_ests.rds"))
     sample_data <- readRDS(paste0("input/",sp_codes[i],"_SRSWR_sample.rds"))
@@ -235,16 +251,56 @@ construct_full_data_tibbles <- function(sp_codes,
 
     sp_data_full <- rbind(sp_data_full, sp_data_temp)
 
+    #Species-level pooled model
+    sp_pooled_model <- readRDS(paste0(est_file_path, sp_codes[i],
+                                      "_sp_level_model_ests.rds"))
     sp_model_data_full <- rbind(sp_model_data_full,
-                                readRDS(paste0(est_file_path, sp_codes[i],
-                                               "_sp_level_model_ests.rds")))
+                                sp_pooled_model)
+
+    #Get R^2 for hierarchical and pooled models
+    pars_combo <- c(
+      g_max = sp_pooled_model$median_est[1],
+      y_max = sp_pooled_model$median_est[2],
+      k = sp_pooled_model$median_est[3]
+    )
+
+    sp_level_measurement_data <- tibble()
+    for(j in ind_data_temp$ind_id){ #Iterate through individuals and project forward from s_0
+      temp <- measurement_data_temp %>%
+        filter(ind_id == j)
+
+      yini <- c(Y = temp$y_obs[1])
+      size_est <- ode(yini,
+                      times = temp$time,
+                      func = Canham_DE,
+                      parms = pars_combo,
+                      method = "ode45")[,2]
+      temp$y_hat <- size_est
+
+      sp_level_measurement_data <- rbind(sp_level_measurement_data, temp)
+    }
+
+    model_fit_data_temp <- tibble(
+      sp_code = sp_codes[i],
+      rmse_hierarchical = rmse_calc(measurement_data_temp$y_obs,
+                                    measurement_data_temp$y_hat),
+      r_sq_hierarchical = cor(measurement_data_temp$y_obs,
+                              measurement_data_temp$y_hat)^2,
+      rmse_pooled = rmse_calc(sp_level_measurement_data$y_obs,
+                              sp_level_measurement_data$y_hat),
+      r_sq_pooled = cor(sp_level_measurement_data$y_obs,
+                              sp_level_measurement_data$y_hat)
+    )
+
+    model_fit_data <- rbind(model_fit_data, model_fit_data_temp)
   }
 
   return_data <- list(
     measurement_data_full = measurement_data_full,
     ind_data_full = ind_data_full,
     sp_data_full = sp_data_full,
-    sp_model_data_full = sp_model_data_full
+    sp_model_data_full = sp_model_data_full,
+    model_fit_data = model_fit_data
   )
 }
 
@@ -320,6 +376,7 @@ build_sp_tables <- function(full_data){
     left_join(ind_summary_size, by = "sp_code") %>%
     left_join(obs_growth_data, by = "sp_code") %>%
     left_join(species_walltime, by = "sp_code") %>%
+    left_join(full_data$model_fit_data, by = "sp_code") %>%
     left_join(sp_model_wide, by = "sp_code") %>%
     left_join(trait_table, by = "species") %>%
     mutate(
@@ -330,14 +387,15 @@ build_sp_tables <- function(full_data){
     )
 
   table_1 <- species_summary_table %>%
-    select(species, sp_code, samp, walltime)
+    select(species, sp_code, samp, walltime, r_sq_hierarchical, rmse_hierarchical,
+           r_sq_pooled, rmse_pooled)
   write.csv(table_1, "output/data/Paper_Table_1.csv", row.names = FALSE)
 
   table_2 <- species_summary_table %>%
     select(species, pop_max_growth_mean, pop_log_max_growth_sd,
            pop_size_at_max_growth_mean, pop_log_size_at_max_growth_sd,
            pop_k_mean, pop_log_k_sd)
-  table_2[,2:8] <- signif(table_2[,2:8], digits = 4)
+  table_2[,2:7] <- signif(table_2[,2:7], digits = 4)
   write.csv(table_2, "output/data/Paper_Table_2.csv", row.names = FALSE)
 
   table_3 <- species_summary_table %>%
@@ -801,7 +859,7 @@ plot_ridges <- function (ind_par_data, growth_par_names, plot_par_names,
       select(growth_par_names[i], BCI_ind_id, species, sp_code) %>%
       rename(val = growth_par_names[i]) %>%
       group_by(species) %>%
-      mutate(median = median(val)) %>%
+      mutate(quant_95 = quantile(val, 0.95)) %>%
       ungroup()
     file_name <- paste("output/figures/", growth_par_names[i],".png", sep="")
     plot <- gg_plot_ridges(plot_data, col_vec, log10 = TRUE,
@@ -812,18 +870,44 @@ plot_ridges <- function (ind_par_data, growth_par_names, plot_par_names,
   plot_data <- measurement_data %>%
     mutate(val = (lead(y_hat) - y_hat)/(lead(time) - time)) %>%
     group_by(species) %>%
-    mutate(median = median(val)) %>%
+    mutate(quant_95 = quant_95(val)) %>%
     ungroup()
 
   file_name <- "output/figures/GrowthRate_Density.png"
   plot <- gg_plot_ridges(plot_data, col_vec, quantile = FALSE,
                          par_name = "Annualised growth rates", log10=TRUE)
   ggsave(file_name, plot=plot, width=130, height=100, units="mm")
+
+  # Combined plot with shared x-axis for g_max, anualised growth
+  plot_data_combined_fit_growth <- measurement_data %>%
+    group_by(species, BCI_ind_id) %>%
+    mutate(val = (lead(y_hat) - y_hat)/(lead(time) - time),
+           source = "Annualised growth") %>%
+    ungroup() %>%
+    filter(!is.na(val)) %>%
+    select(val, BCI_ind_id, species, sp_code, source) %>%
+    mutate(gmax_95 = NA)
+
+  plot_data_combined_g_max <- ind_par_data %>%
+    select(ind_max_growth, BCI_ind_id, species, sp_code) %>%
+    rename(val = ind_max_growth) %>%
+    group_by(species) %>%
+    mutate(source = "Ind. max growth",
+           gmax_95 = as.numeric(quantile(val, 0.95))) %>%
+    ungroup()
+
+  plot_data <- rbind(plot_data_combined_fit_growth, plot_data_combined_g_max) %>%
+    group_by(species) %>%
+    mutate(gmax_95 = max(gmax_95, na.rm=TRUE))
+
+  file_name <- "output/figures/GrowthRateDensity_Combined.svg"
+  plot <- gg_plot_ridges_combined(plot_data, col_vec)
+  ggsave(file_name, plot=plot, width=180, height=200, units="mm")
 }
 
 gg_plot_ridges <- function(plot_data, col_vec, log10 = FALSE, quantile = FALSE,
                            par_name){
-  plot <- ggplot(plot_data, aes(x=val, y=reorder(x=species, X=median),
+  plot <- ggplot(plot_data, aes(x=val, y=reorder(x=species, X=quant_95),
                                 fill=species)) +
     geom_density_ridges() +
     xlab(par_name) +
@@ -837,22 +921,45 @@ gg_plot_ridges <- function(plot_data, col_vec, log10 = FALSE, quantile = FALSE,
       scale_x_log10()
   }
 
-  if(quantile){
-    quant_data <- plot_data %>%
-      group_by(species) %>%
-      summarize(quant90 = quantile(val, 0.9),
-                median = quantile(val, 0.5)) %>%
-      arrange(median)
+  return(plot)
+}
 
-    for(j in 1:length(quant_data)){
-      plot <- plot +
-        geom_segment(data = quant_data,
-                     aes(y = rank(median),
-                         yend = rank(median) + 1,
-                         x = quant90,
-                         xend = quant90),
-                     linewidth = 1)
-    }
+gg_plot_ridges_combined <- function(plot_data, col_vec){
+  plot <- ggplot(plot_data, aes(x=val,
+                                y=reorder(x=interaction(source,species), X=gmax_95),
+                                fill=species,
+                                group = interaction(species,source))) +
+    geom_density_ridges(aes(alpha = source, colour = source),
+                        quantile_lines = TRUE, quantiles = c(0.95)) +
+    xlab("Growth rates") +
+    ylab("") +
+    scale_fill_manual(values = col_vec) +
+    scale_alpha_manual(values = c(0.3, 0.7)) +
+    scale_colour_manual(values = c("grey40", "black")) +
+    theme_classic() +
+    theme(legend.position="none") +
+    scale_x_log10()
+
+  quant_data <- plot_data %>%
+    group_by(species) %>%
+    summarize(quant95 = quantile(val, 0.95),
+              source = "gmax") %>%
+    arrange(quant95)
+
+  quant_data_2 <- quant_data %>%
+    mutate(source = "obs")
+
+  quant_data_all <- rbind(quant_data, quant_data_2) %>%
+    arrange(quant95, source)
+
+  for(j in 1:length(quant_data_all)){
+    plot <- plot +
+      geom_segment(data = quant_data_all,
+                   aes(y = rank(quant95)-0.5,
+                       yend = rank(quant95) + 1.5,
+                       x = quant95,
+                       xend = quant95),
+                   linewidth = 1)
   }
 
   return(plot)
