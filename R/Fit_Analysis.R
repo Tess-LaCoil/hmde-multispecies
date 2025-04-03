@@ -863,7 +863,7 @@ plot_ridges <- function (ind_par_data, growth_par_names, plot_par_names,
       ungroup()
     file_name <- paste("output/figures/", growth_par_names[i],".png", sep="")
     plot <- gg_plot_ridges(plot_data, col_vec, log10 = TRUE,
-                           quantile = FALSE, par_name = plot_par_names[i])
+                           quantile = TRUE, par_name = plot_par_names[i])
     ggsave(file_name, plot=plot, width=130, height=100, units="mm")
   }
 
@@ -905,7 +905,8 @@ plot_ridges <- function (ind_par_data, growth_par_names, plot_par_names,
   ggsave(file_name, plot=plot, width=180, height=200, units="mm")
 }
 
-gg_plot_ridges <- function(plot_data, col_vec, log10 = FALSE, quantile = FALSE,
+gg_plot_ridges <- function(plot_data, col_vec, log10 = FALSE,
+                           quantile = FALSE, quant_val = 0.95,
                            par_name){
   plot <- ggplot(plot_data, aes(x=val, y=reorder(x=species, X=quant_95),
                                 fill=species)) +
@@ -915,6 +916,19 @@ gg_plot_ridges <- function(plot_data, col_vec, log10 = FALSE, quantile = FALSE,
     scale_fill_discrete(col_vec) +
     theme_classic() +
     theme(legend.position="none")
+
+  if(quantile){
+    plot <- ggplot(plot_data, aes(x=val, y=reorder(x=species, X=quant_95),
+                                  fill=species)) +
+      geom_density_ridges(quantile_lines = TRUE,
+                          quantiles = quant_val,
+                          alpha = 0.7) +
+      xlab(par_name) +
+      ylab("") +
+      scale_fill_discrete(col_vec) +
+      theme_classic() +
+      theme(legend.position="none")
+  }
 
   if(log10){
     plot <- plot +
