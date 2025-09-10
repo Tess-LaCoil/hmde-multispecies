@@ -830,8 +830,13 @@ plot_obs_est_size_scatter <- function(full_data, col_vec, sp_codes){
 ggplot_obs_est_scatter <- function(plot_data, colour, title){
   r_sq_est <- cor(plot_data$y_obs,
                   plot_data$y_hat)^2
+  rmse_est <- rmse_calc(plot_data$y_obs,
+                        plot_data$y_hat)
   r_sq <- paste0("R^2 = ",
                  signif(r_sq_est,
+                        digits = 3),
+                 "\n RMSE = ",
+                 signif(rmse_est,
                         digits = 3))
 
   plot <-
@@ -1387,7 +1392,7 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
   }
 
   #Data for plots of sizes over time
-  plotting_data <- sp_level_measurement_data %>%
+  plotting_data <- measurement_data %>%
     filter(ind_id %in% focus_ind_vec)
 
   data_h <- rbind(data.frame(size=plotting_data$y_obs,
@@ -1401,11 +1406,13 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
                   )) %>%
     mutate(time = 1990 + round(time, digits=0))
 
+  plotting_data <- sp_level_measurement_data %>%
+    filter(ind_id %in% focus_ind_vec)
   data_sp <- rbind(data.frame(size=plotting_data$y_obs,
                               time=plotting_data$time,
                               cond=rep("Observed", times=length(plotting_data$time)),
                               id_num = paste(plotting_data$BCI_ind_id, "Obs") ),
-                   data.frame(size=plotting_data$y_hat_species,
+                   data.frame(size=plotting_data$y_hat,
                               time=plotting_data$time,
                               cond=rep("Estimated", times=length(plotting_data$time)),
                               id_num = paste(plotting_data$BCI_ind_id, "Est")
@@ -1457,7 +1464,9 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
 
   #Extract y limits from h_g_plot
   ylims <- c(0, layer_scales(h_g_plot)$y$range$range[2])
-  args_list <- list(pars=as.numeric(species_summary_vec[1,c(22, 23, 21)]))
+  args_list <- list(pars=data.frame(g_max = species_summary_vec$pop_level_model_max_growth[1],
+                           s_max = species_summary_vec$pop_level_model_size_at_max_growth[1],
+                           k = species_summary_vec$pop_level_model_k[1]))
   sp_g_plot <- ggplot() +
     geom_function(fun=hmde_canham_de, args=args_list, alpha=1,
                   color="#333333", linewidth=1, xlim=c(1,
@@ -1473,7 +1482,7 @@ fig_1_plots <- function(chosen_sp_code, colour, focus_ind_vec,
                                         y_hat = measurement_data$y_hat,
                                         cond="Hierarchical fit"),
                              data.frame(y_obs=sp_level_measurement_data$y_obs,
-                                        y_hat = sp_level_measurement_data$y_hat_species,
+                                        y_hat = sp_level_measurement_data$y_hat,
                                         cond="Species-level fit"))
 
   #Separate size scatter plots for model fits
